@@ -12,12 +12,23 @@ public class AssetManager
     private readonly Config _config;
     public string[][] ArmorIds { get; } = new string[3][];
 
+    private readonly IList<Texture2D> _terrariaImages;
+    private IList<Texture2D> _customImages;
+
+    public IList<Texture2D> Images => _terrariaImages.Concat(_customImages).ToList();
+
     private const string ContentDirectory = "Content";
     private const string FontsDirectory = "Fonts";
     private const string ImagesDirectory = "Images";
 
+    private readonly FileSystemWatcher _imageWatcher =
+        new(ContentDirectory + Path.DirectorySeparatorChar + ImagesDirectory);
+
+    public event Action<ICollection<Texture2D>>? ImagesUpdated;
+
     private readonly Dictionary<TerrariaTextureType, string> _terrariaTextureFileMap = new()
     {
+        { TerrariaTextureType.Misc, "Images/Misc/" },
         { TerrariaTextureType.PlayerBase, "Images/Player_0_" },
         { TerrariaTextureType.ArmorHead, "Images/Armor_Head_" },
         { TerrariaTextureType.ArmorBody, "Images/Armor/Armor_" },
@@ -28,24 +39,56 @@ public class AssetManager
     {
         _contentManager = contentManager;
         _config = config;
+
+        CreateDirectories();
+
+        _imageWatcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
+        _imageWatcher.Filter = "*.png";
+        _imageWatcher.EnableRaisingEvents = true;
+        _imageWatcher.Created += OnImagesChanged;
+        _imageWatcher.Changed += OnImagesChanged;
+        _imageWatcher.Renamed += OnImagesChanged;
+        _imageWatcher.Deleted += OnImagesChanged;
+
+        GetCustomImages();
+
+        _terrariaImages = new List<Texture2D>();
+        _terrariaImages.Add(LoadTerrariaTexture(TerrariaTextureType.Misc, "noise"));
+        _terrariaImages.Add(LoadTerrariaTexture(TerrariaTextureType.Misc, "Perlin"));
     }
 
-    public void CreateDirectories()
+    private static void CreateDirectories()
     {
-        _contentManager.RootDirectory = "Content";
-        Directory.CreateDirectory(_contentManager.RootDirectory + Path.DirectorySeparatorChar + ImagesDirectory);
+        Directory.CreateDirectory(ContentDirectory + Path.DirectorySeparatorChar + ImagesDirectory);
     }
 
-    public static string[] GetFiles(string directory)
+    private void OnImagesChanged(object sender, FileSystemEventArgs e)
     {
-        var files = Directory.GetFiles("Content" + Path.DirectorySeparatorChar + directory);
-        for (var i = 0; i < files.Length; i++)
+        GetCustomImages();
+        ImagesUpdated?.Invoke(Images);
+    }
+
+    [MemberNotNull(nameof(_customImages))]
+    private void GetCustomImages()
+    {
+        _contentManager.RootDirectory = ContentDirectory + Path.DirectorySeparatorChar + ImagesDirectory;
+        var imageFiles = Directory.GetFiles(_contentManager.RootDirectory, "*.png");
+        var images = new List<Texture2D>();
+        for (var i = 0; i < imageFiles.Length; i++)
         {
-            var filePath = files[i];
-            files[i] = Path.GetFileNameWithoutExtension(filePath);
+            var filePath = imageFiles[i];
+            var fileName = imageFiles[i] = Path.GetFileNameWithoutExtension(filePath);
+            try
+            {
+                var image = _contentManager.Load<Texture2D>(fileName);
+                images.Add(image);
+            }
+            catch (ContentLoadException)
+            {
+            }
         }
 
-        return files;
+        _customImages = images;
     }
 
     public void LoadAssets()
@@ -70,50 +113,6 @@ public class AssetManager
         _contentManager.RootDirectory = ContentDirectory + Path.DirectorySeparatorChar + FontsDirectory;
         return _contentManager.Load<SpriteFont>(fontName);
     }
-    
-    public Texture2D LoadImage(string imageName)
-    {
-        _contentManager.RootDirectory = ContentDirectory + Path.DirectorySeparatorChar + ImagesDirectory;
-        return _contentManager.Load<Texture2D>(imageName);
-    }
-
-
-    public bool TryLoadImage(string imageName, [NotNullWhen(true)] out Texture2D? texture)
-    {
-        texture = null;
-
-        if (string.IsNullOrEmpty(imageName))
-            return false;
-
-        _contentManager.RootDirectory = ContentDirectory + Path.DirectorySeparatorChar + ImagesDirectory;
-        if (!File.Exists(_contentManager.RootDirectory + Path.DirectorySeparatorChar + imageName + ".png"))
-            return false;
-
-        texture = _contentManager.Load<Texture2D>(imageName);
-        return true;
-    }
-
-    public bool TryLoadExternalImage(string path, [NotNullWhen(true)] out Texture2D? texture)
-    {
-        texture = null;
-
-        if (string.IsNullOrEmpty(path))
-            return false;
-
-        if (!Path.IsPathFullyQualified(path))
-            return false;
-
-        if (!File.Exists(path))
-            return false;
-
-        if (Path.GetExtension(path) != ".png")
-            return false;
-
-        _contentManager.RootDirectory = Path.GetDirectoryName(path);
-
-        texture = _contentManager.Load<Texture2D>(Path.GetFileNameWithoutExtension(path));
-        return true;
-    }
 
     public Effect LoadTerrariaEffect(string name)
     {
@@ -124,6 +123,12 @@ public class AssetManager
     public Texture2D LoadTerrariaTexture(TerrariaTextureType type, int id)
     {
         var path = _terrariaTextureFileMap[type] + id;
+        return LoadTerrariaTexture(path);
+    }
+
+    public Texture2D LoadTerrariaTexture(TerrariaTextureType type, string name)
+    {
+        var path = _terrariaTextureFileMap[type] + name;
         return LoadTerrariaTexture(path);
     }
 

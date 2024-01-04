@@ -11,7 +11,7 @@ public class TexturePreview : UIElement, IClickable, IScrollable
     private const int Margin = 4;
     private Rectangle TextureBounds => new(X + Margin, Y + Margin, Width - Margin * 2, Height - Margin * 2);
 
-    private Texture2D _texture;
+    private Texture2D? _texture;
     private readonly SpriteFont _font;
     private readonly Color _color;
     private readonly bool _drawWithEffect;
@@ -23,10 +23,9 @@ public class TexturePreview : UIElement, IClickable, IScrollable
     private const float MaxZoom = 3;
     private float _zoomLevel;
 
-    private float TextureScale =>
-        _zoomLevel < 0 ? 1f / (1f + -_zoomLevel) : 1f + _zoomLevel;
+    private float TextureScale => _zoomLevel < 0 ? 1f / (1f + -_zoomLevel) : 1f + _zoomLevel;
 
-    public TexturePreview(Texture2D texture, SpriteFont font, Color? color, bool drawWithEffect)
+    private TexturePreview(Texture2D? texture, SpriteFont font, Color? color, bool drawWithEffect)
     {
         _texture = texture;
         _font = font;
@@ -34,14 +33,15 @@ public class TexturePreview : UIElement, IClickable, IScrollable
         _drawWithEffect = drawWithEffect;
     }
 
-    public void SetTexture(Texture2D texture)
+    public void SetTexture(Texture2D? texture)
     {
-        _texture = texture ?? throw new ArgumentNullException(nameof(texture));
+        _texture = texture;
+        _offset = Point.Zero;
     }
     
     protected override void UpdateElement(GameTime gameTime)
     {
-        if (!_isDragging)
+        if (_texture == null || !_isDragging)
             return;
 
         var mouseState = Mouse.GetState();
@@ -76,6 +76,9 @@ public class TexturePreview : UIElement, IClickable, IScrollable
     {
         drawHelper.DrawSolid(Vector2.Zero, Width, Height, Color.DarkGray);
 
+        if (_texture == null)
+            return;
+        
         var textureBounds = TextureBounds;
         var scale = TextureScale;
         var width = _texture.Width * scale < textureBounds.Width
@@ -122,6 +125,9 @@ public class TexturePreview : UIElement, IClickable, IScrollable
 
     public void OnScroll(int amount)
     {
+        if (_texture == null)
+            return;
+        
         _zoomLevel = Math.Clamp(_zoomLevel + amount, -MaxZoom, MaxZoom);
 
         var newScale = TextureScale;
@@ -145,13 +151,12 @@ public class TexturePreview : UIElement, IClickable, IScrollable
 
         public Builder()
         {
-            AddValidationStep(() => _texture != null, "Texture has not been set.");
             AddValidationStep(() => _font != null, "Font has not been set.");
         }
 
-        public Builder SetTexture(Texture2D texture)
+        public Builder SetTexture(Texture2D? texture)
         {
-            _texture = texture ?? throw new ArgumentNullException(nameof(texture));
+            _texture = texture;
             return this;
         }
 

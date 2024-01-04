@@ -9,7 +9,7 @@ public sealed class FloatEffectParameterWrapper : EffectParameterWrapper<float>
         {
         }
 
-        public override void Apply(Effect effect)
+        public override void Apply(EffectWrapper effect)
         {
             effect.Parameters[Parameter].SetValue(Value);
         }

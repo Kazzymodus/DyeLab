@@ -3,7 +3,7 @@
 public enum TerrariaTextureType
 {
     None,
-    Image,
+    Misc,
     PlayerBase,
     ArmorHead,
     ArmorBody,

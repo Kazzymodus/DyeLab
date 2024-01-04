@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace DyeLab.UI;
@@ -8,22 +9,58 @@ public class Label : UIElement
     private string _text;
     private readonly SpriteFont _font;
     private readonly Color _color;
-    
+
+    private string _drawText = string.Empty;
+
     private Label(string text, SpriteFont font, Color color)
     {
-        _text = text;
         _font = font;
         _color = color;
+        _text = text;
     }
 
     public void SetText(string text)
     {
         _text = text ?? throw new ArgumentNullException(nameof(text));
+        CalculateDrawText();
+    }
+
+    public override void SetBounds(int x, int y, int width, int height)
+    {
+        base.SetBounds(x, y, width, height);
+        
+        CalculateDrawText();
+    }
+
+    public void CalculateDrawText()
+    {
+        var boundsInCharacters = new Vector2(Width, Height) / _font.MeasureString("*");
+        if (boundsInCharacters.X == 0 || boundsInCharacters.Y == 0)
+        {
+            _drawText = string.Empty;
+            return;
+        }
+
+        var width = (int)boundsInCharacters.X;
+        if (_text.Length <= width)
+        {
+            _drawText = _text;
+            return;
+        }
+
+        var baseLength = Math.Max(width - 3, 0);
+        if (baseLength == 0)
+        {
+            _drawText = new string('.', Math.Min(width, 3));
+            return;
+        }
+
+        _drawText = _text[..baseLength] + new string('.', Math.Min(width - baseLength, 3));
     }
 
     protected override void DrawElement(DrawHelper drawHelper)
     {
-        drawHelper.DrawText(_font, _text, Vector2.Zero, _color);
+        drawHelper.DrawText(_font, _drawText, Vector2.Zero, _color);
     }
 
     public static Builder New() => new();
@@ -60,7 +97,7 @@ public class Label : UIElement
             _color = color;
             return this;
         }
-        
+
         protected override Label BuildElement()
         {
             return new Label(_text!, _font!, _color ?? Color.White);

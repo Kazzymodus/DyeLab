@@ -25,7 +25,7 @@ public sealed class Float3EffectParameterWrapper : VectorEffectParameterWrapper<
         SetComponent(z, (ref Vector3 v, float val) => v.Z = val);
     }
 
-    public override void Apply(Effect effect)
+    public override void Apply(EffectWrapper effect)
     {
         effect.Parameters[Parameter].SetValue(Value);
     }

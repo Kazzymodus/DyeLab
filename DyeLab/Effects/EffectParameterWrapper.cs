@@ -11,7 +11,7 @@ public abstract class EffectParameterWrapper
         Parameter = parameter;
     }
 
-    public abstract void Apply(Effect effect);
+    public abstract void Apply(EffectWrapper effect);
 }
 
 public abstract class EffectParameterWrapper<T> : EffectParameterWrapper

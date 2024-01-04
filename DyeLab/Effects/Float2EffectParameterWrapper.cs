@@ -20,7 +20,7 @@ public sealed class Float2EffectParameterWrapper : VectorEffectParameterWrapper<
         SetComponent(y, (ref Vector2 v, float val) => v.Y = val);
     }
 
-    public override void Apply(Effect effect)
+    public override void Apply(EffectWrapper effect)
     {
         effect.Parameters[Parameter].SetValue(Value);
     }

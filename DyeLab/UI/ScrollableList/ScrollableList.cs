@@ -15,7 +15,7 @@ public sealed class ScrollableList<T> : UIElement, IClickable, IScrollable
     private int _scroll;
 
     private readonly bool _isPopup;
-    
+
     public event Action<T>? ValueChanged;
 
     private ScrollableList(IEnumerable<ScrollableListItem<T>> entries, SpriteFont font, int itemHeight, bool isPopup)
@@ -35,7 +35,7 @@ public sealed class ScrollableList<T> : UIElement, IClickable, IScrollable
         {
             var item = _items[i];
             if (item.Label != selectedItem.Label || !Equals(item.Value, selectedItem.Value)) continue;
-            
+
             _selectedIndex = i;
             return;
         }
@@ -43,7 +43,7 @@ public sealed class ScrollableList<T> : UIElement, IClickable, IScrollable
         _selectedIndex = 0;
         ValueChanged?.Invoke(_items[_selectedIndex].Value);
     }
-    
+
     public void OnFocus()
     {
     }
@@ -52,10 +52,13 @@ public sealed class ScrollableList<T> : UIElement, IClickable, IScrollable
     {
         if (button != MouseButton.LMB)
             return;
-        
+
         var index = _scroll + mousePosition.Y / _itemHeight;
+        if (index >= _items.Count)
+            return;
+
         _selectedIndex = index;
-        
+
         ValueChanged?.Invoke(_items[_selectedIndex].Value);
     }
 

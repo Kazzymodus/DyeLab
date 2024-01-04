@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\FNA\FNA.csproj"/>
+        <ProjectReference Include="..\FNA\FNA.csproj" />
     </ItemGroup>
 
     <ItemGroup>
@@ -27,13 +27,15 @@
         <None Update="data\legIds.txt">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
+        <None Include="bin\Debug\net7.0\Content\Images\TestImage3.png" />
+        <None Include="bin\Debug\net7.0\Content\TestImage2.png" />
         <None Include="Content\Fonts\Consolas.xnb">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.3"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     </ItemGroup>
 
 </Project>

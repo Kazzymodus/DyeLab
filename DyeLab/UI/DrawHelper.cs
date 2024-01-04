@@ -1,15 +1,15 @@
 ﻿using System.Runtime.CompilerServices;
+using DyeLab.Effects;
 using DyeLab.Effects.Constants;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace DyeLab.UI;
 
-public class DrawHelper : IDisposable
+public sealed class DrawHelper : IDisposable
 {
     private readonly SpriteBatch _spriteBatch;
-    private Effect? _effect;
-    private int _passIndex;
+    private EffectWrapper? _effect;
 
     public Vector2 DrawOffset { get; set; }
 
@@ -25,25 +25,9 @@ public class DrawHelper : IDisposable
         _spriteBatch = spriteBatch;
     }
 
-    public void SetEffect(Effect effect)
+    public void SetEffect(EffectWrapper effect)
     {
         _effect = effect;
-        _passIndex = 0;
-    }
-
-    public void SetPassIndex(int index)
-    {
-        if (_effect == null)
-            throw new InvalidOperationException("Effect has not been set yet.");
-
-        if (index < 0)
-            throw new ArgumentOutOfRangeException(nameof(index), index, "Index must not be negative");
-
-        if (index >= _effect.CurrentTechnique.Passes.Count)
-            throw new ArgumentOutOfRangeException(nameof(index), index,
-                $"Index must be lower than the amount of passes ({_effect.CurrentTechnique.Passes.Count})");
-
-        _passIndex = index;
     }
 
     public void DrawSolid(Vector2 offset, int width, int height, Color color, bool withEffect = false)
@@ -143,7 +127,7 @@ public class DrawHelper : IDisposable
             if (_effect == null)
                 throw new InvalidOperationException("Effect has not been set yet.");
 
-            _effect.CurrentTechnique.Passes[_passIndex].Apply();
+            _effect.Apply();
             _effectApplied = true;
             return;
         }
@@ -185,7 +169,7 @@ public class DrawHelper : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    protected virtual void Dispose(bool disposing)
+    private void Dispose(bool disposing)
     {
         if (_isDisposed)
             return;

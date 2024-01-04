@@ -14,7 +14,7 @@ public abstract class UIElement
 
     private DrawLayer _drawLayer = DrawLayer.Default;
 
-    public Vector2 Position => new(X, Y);
+    public Point Position => new(X, Y);
     public Rectangle Bounds => new(X, Y, Width, Height);
 
     private readonly IList<UIElement> _children = new List<UIElement>();
@@ -23,7 +23,7 @@ public abstract class UIElement
 
     public static event Action? ActiveChanged;
 
-    public void SetBounds(int x, int y, int width, int height)
+    public virtual void SetBounds(int x, int y, int width, int height)
     {
         ThrowIfNegative(x);
         ThrowIfNegative(y);
@@ -128,7 +128,7 @@ public abstract class UIElement
 
     public void Draw(DrawHelper drawHelper)
     {
-        drawHelper.DrawOffset = Position;
+        drawHelper.DrawOffset = new Vector2(Position.X, Position.Y);
         // if (Width > 0 && Height > 0)
         //     drawHelper.DrawSolid(Vector2.Zero, Width, Height, Color.FromNonPremultiplied(255, 0, 0, 40));
         DrawElement(drawHelper);

@@ -1,7 +1,9 @@
-﻿using ArgumentNullException = System.ArgumentNullException;
+﻿using Newtonsoft.Json;
+using ArgumentNullException = System.ArgumentNullException;
 
 namespace DyeLab.Configuration;
 
+[JsonConverter(typeof(ConfigOptionJsonConverter<string>))]
 public sealed class ConfigOption<T>
 {
     public T Value => _value ?? _default;

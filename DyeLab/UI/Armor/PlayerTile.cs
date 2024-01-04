@@ -152,8 +152,8 @@ public class PlayerTile : UIElement, IClickable
             var legList = CreateList(_legIds!, 2);
 
             var headItem = new ArmorItem(headList, i => _loadTextureCallback!(TerrariaTextureType.ArmorHead, i));
-            var bodyItem = new ArmorItem(bodyList, i => _loadTextureCallback(TerrariaTextureType.ArmorBody, i));
-            var legItem = new ArmorItem(legList, i => _loadTextureCallback(TerrariaTextureType.ArmorLeg, i));
+            var bodyItem = new ArmorItem(bodyList, i => _loadTextureCallback!(TerrariaTextureType.ArmorBody, i));
+            var legItem = new ArmorItem(legList, i => _loadTextureCallback!(TerrariaTextureType.ArmorLeg, i));
 
             var playerTile = new PlayerTile(new []{headItem, bodyItem, legItem}, _skinTextures);
             playerTile.AddChild(headList);
