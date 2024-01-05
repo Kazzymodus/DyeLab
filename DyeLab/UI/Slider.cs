@@ -8,8 +8,8 @@ namespace DyeLab.UI;
 public class Slider : UIElement, IClickable, IScrollable
 {
     private float _sliderValue;
-    private readonly float _minValue;
-    private readonly float _maxValue;
+    private float _minValue;
+    private float _maxValue;
     private readonly Color _backgroundColor;
 
     private bool _isDragging;
@@ -29,12 +29,28 @@ public class Slider : UIElement, IClickable, IScrollable
     {
         var clampedValue = Math.Clamp(value, _minValue, _maxValue);
         var newValue = (clampedValue - _minValue) / (_maxValue - _minValue);
+        if (float.IsNaN(newValue))
+            newValue = 0;
 
         if (_sliderValue.Equals(newValue) && value.Equals(clampedValue))
             return;
             
         _sliderValue = newValue;
         ValueChanged?.Invoke(clampedValue);
+    }
+
+    public void SetMinMaxValue(float minValue, float maxValue)
+    {
+        if (minValue > maxValue)
+            throw new ArgumentException($"{nameof(minValue)} must be smaller than {nameof(maxValue)}");
+
+        _minValue = minValue;
+        _maxValue = maxValue;
+
+        var currentValue = GetValue();
+        var clampedValue = Math.Clamp(currentValue, minValue, maxValue);
+        if (!currentValue.Equals(clampedValue))
+            SetValue(clampedValue);
     }
 
     protected override void UpdateElement(GameTime gameTime)
@@ -66,9 +82,9 @@ public class Slider : UIElement, IClickable, IScrollable
     {
     }
 
-    public void OnClick(MouseButton button, Point mousePosition)
+    public void OnClick(MouseButtons buttons, Point mousePosition)
     {
-        if (button == MouseButton.LMB)
+        if (buttons.HasFlag(MouseButtons.LMB))
             _isDragging = true;
     }
 
@@ -97,7 +113,7 @@ public class Slider : UIElement, IClickable, IScrollable
 
         public Builder SetMinMaxValues(float min, float max)
         {
-            if (min >= max)
+            if (min > max)
                 throw new ArgumentException($"{nameof(min)} must be smaller than {nameof(max)}");
 
             _minValue = min;

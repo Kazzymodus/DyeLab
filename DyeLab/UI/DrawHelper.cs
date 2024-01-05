@@ -6,10 +6,10 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace DyeLab.UI;
 
-public sealed class DrawHelper : IDisposable
+public class DrawHelper : IDisposable
 {
     private readonly SpriteBatch _spriteBatch;
-    private EffectWrapper? _effect;
+    private readonly EffectWrapper _effect;
 
     public Vector2 DrawOffset { get; set; }
 
@@ -20,13 +20,9 @@ public sealed class DrawHelper : IDisposable
 
     private bool _isDisposed;
 
-    public DrawHelper(SpriteBatch spriteBatch)
+    public DrawHelper(SpriteBatch spriteBatch, EffectWrapper effect)
     {
         _spriteBatch = spriteBatch;
-    }
-
-    public void SetEffect(EffectWrapper effect)
-    {
         _effect = effect;
     }
 
@@ -163,7 +159,7 @@ public sealed class DrawHelper : IDisposable
     private static ulong GetColoredSolidHash(ushort width, ushort height, Color color) =>
         (ulong)width << 48 | (ulong)height << 32 | color.PackedValue;
 
-    public void Dispose()
+    public virtual void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);

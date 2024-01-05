@@ -28,9 +28,9 @@ public class TabBar : UIElement, IClickable
     {
     }
 
-    public void OnClick(MouseButton button, Point mousePosition)
+    public void OnClick(MouseButtons buttons, Point mousePosition)
     {
-        if (button != MouseButton.LMB)
+        if (!buttons.HasFlag(MouseButtons.LMB))
             return;
 
         var tabIndex = (int)(mousePosition.X / (float)Width * _tabs.Length);

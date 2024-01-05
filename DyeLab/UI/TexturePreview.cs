@@ -113,7 +113,7 @@ public class TexturePreview : UIElement, IClickable, IScrollable
     {
     }
 
-    public void OnClick(MouseButton button, Point mousePosition)
+    public void OnClick(MouseButtons buttons, Point mousePosition)
     {
         _isDragging = true;
         _lastMousePosition = mousePosition;

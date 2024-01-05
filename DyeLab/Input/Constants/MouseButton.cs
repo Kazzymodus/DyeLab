@@ -1,8 +1,10 @@
 ﻿namespace DyeLab.Input.Constants;
 
-public enum MouseButton
+[Flags]
+public enum MouseButtons
 {
-    LMB,
-    MMB,
-    RMB
+    None = 0,
+    LMB = 1,
+    MMB = 2,
+    RMB = 4
 }

@@ -7,13 +7,27 @@ using Microsoft.Xna.Framework.Input;
 
 namespace DyeLab.UI.InputField;
 
-public abstract class InputField : UIElement
+public abstract class InputField : UIElement, IClickable, IScrollable
 {
+    protected const char WhiteLineChar = '\n';
+
     private bool _takingInput;
     public bool IsReadOnly { private get; set; }
 
     protected StringBuilder Content { get; } = new();
     private string _cachedText = string.Empty;
+    private string[] _cachedLines = { string.Empty };
+
+    private Vector2 CharacterSize => _font.MeasureString("*");
+
+    private Point CharactersInBounds
+    {
+        get
+        {
+            var characterSize = CharacterSize;
+            return new Point((int)(Width / characterSize.X), (int)(Height / characterSize.Y));
+        }
+    }
 
     private readonly Cursor _cursor;
     protected int CursorPosition => _cursor.Position;
@@ -42,6 +56,13 @@ public abstract class InputField : UIElement
         _cursorDirectionControl.Add(new CursorDirectionControl(Keys.Right, () => MoveCursorHorizontally(1)));
     }
 
+    public override void SetBounds(int x, int y, int width, int height)
+    {
+        base.SetBounds(x, y, width, height);
+
+        _cachedLines = new string[Height / (int)CharacterSize.Y];
+    }
+
     public void OnFocus()
     {
         if (IsReadOnly)
@@ -50,7 +71,7 @@ public abstract class InputField : UIElement
         StartTextInput();
     }
 
-    public void OnClick(MouseButton button, Point mousePosition)
+    public void OnClick(MouseButtons buttons, Point mousePosition)
     {
         if (IsReadOnly)
             return;
@@ -65,6 +86,20 @@ public abstract class InputField : UIElement
             (int)Math.Round(mousePosition.X / characterSize.X) + _scrollOffset.Column);
         var clickCursor = TextCoordinatesToPosition(clickCoordinates);
         _cursor.MoveCursorTo(clickCursor);
+    }
+
+    public void OnScroll(int amount)
+    {
+        const int scrollBuffer = 4;
+        var maxLinesInBounds = (int)(Height / CharacterSize.Y);
+        var maxLineScroll = TextPositionToCoordinates(_cachedText.Length).Line - maxLinesInBounds + scrollBuffer;
+
+        var possibleAmount = Math.Clamp(amount, _scrollOffset.Line - maxLineScroll, _scrollOffset.Line);
+        if (possibleAmount == 0)
+            return;
+
+        _scrollOffset.Line -= possibleAmount;
+        PrepareDrawLines();
     }
 
     private void ParseInput(char input)
@@ -108,6 +143,53 @@ public abstract class InputField : UIElement
     protected void CacheDrawText()
     {
         _cachedText = Content.ToString();
+        PrepareDrawLines();
+    }
+
+    private void PrepareDrawLines()
+    {
+        var charactersInBounds = CharactersInBounds;
+
+        if (charactersInBounds.X <= 0 || charactersInBounds.Y <= 0)
+            return;
+
+        var line = 0;
+        var head = 0;
+
+        for (var i = 0; i < _scrollOffset.Line; i++)
+        {
+            while (_cachedText[head++] != WhiteLineChar && head < _cachedText.Length)
+            {
+            }
+        }
+
+        while (head < _cachedText.Length)
+        {
+            var textOnLine = _cachedText[head.._cachedText.Length];
+
+            var returnIndex = textOnLine.IndexOf(WhiteLineChar);
+            if (returnIndex >= 0)
+            {
+                textOnLine = textOnLine[..returnIndex];
+            }
+
+            var endIndex = Math.Min(_scrollOffset.Column + charactersInBounds.X, textOnLine.Length);
+            if (endIndex >= _scrollOffset.Column)
+            {
+                var textToDraw = textOnLine[_scrollOffset.Column..endIndex];
+                _cachedLines[line] = textToDraw;
+            }
+
+            head += textOnLine.Length + 1;
+            if (++line >= charactersInBounds.Y)
+                break;
+        }
+
+        if (line >= _cachedLines.Length)
+            return;
+
+        for (var i = line; i < _cachedLines.Length; i++)
+            _cachedLines[i] = string.Empty;
     }
 
     protected void InsertAtCursor(char c)
@@ -270,6 +352,8 @@ public abstract class InputField : UIElement
         {
             _scrollOffset.Line += lineOffset;
         }
+
+        PrepareDrawLines();
     }
 
     private TextCoordinates TextPositionToCoordinates(int position)
@@ -279,7 +363,7 @@ public abstract class InputField : UIElement
         var lastReturn = -1;
         for (var i = 0; i < precedingText.Length; i++)
         {
-            if (precedingText[i] != '\r')
+            if (precedingText[i] != WhiteLineChar)
                 continue;
 
             line++;
@@ -303,7 +387,7 @@ public abstract class InputField : UIElement
 
         for (var i = 0; i < _cachedText.Length; i++)
         {
-            if (_cachedText[i] != '\r')
+            if (_cachedText[i] != WhiteLineChar)
                 continue;
 
             if (--line > 0) continue;
@@ -317,7 +401,7 @@ public abstract class InputField : UIElement
         {
             var cursorIndex = Math.Min(lineStartIndex + coordinates.Column, _cachedText.Length);
             var remainingText = _cachedText[lineStartIndex..cursorIndex];
-            var newLineIndex = remainingText.IndexOf('\r');
+            var newLineIndex = remainingText.IndexOf(WhiteLineChar);
             if (newLineIndex >= 0)
                 return lineStartIndex + newLineIndex;
 
@@ -330,68 +414,33 @@ public abstract class InputField : UIElement
         drawHelper.DrawSolid(Vector2.Zero, Width, Height, IsReadOnly ? Color.LightGray : Color.White);
 
         var textColor = Color.Black;
+        var characterSize = CharacterSize;
 
-        var characterSize = _font.MeasureString("*");
-        var charactersInBounds =
-            new Point((int)(Width / characterSize.X), (int)(Height / characterSize.Y));
-
-        if (charactersInBounds.X <= 0 || charactersInBounds.Y <= 0)
-            return;
-
-        var line = 0;
-        var mustStillDrawCursor = _cursor.IsVisible;
-
-        if (!string.IsNullOrEmpty(_cachedText))
+        for (var i = 0; i < _cachedLines.Length; i++)
         {
-            var head = 0;
+            var line = _cachedLines[i];
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
 
-            for (var i = 0; i < _scrollOffset.Line; i++)
-            {
-                while (_cachedText[head++] != '\r' && head < _cachedText.Length)
-                {
-                }
-            }
-
-            var cursor = _cursor.IsVisible ? _cursor.Position : default(int?);
-
-            while (head < _cachedText.Length)
-            {
-                var textOnLine = _cachedText[head.._cachedText.Length];
-
-                var returnIndex = textOnLine.IndexOf('\r');
-                if (returnIndex >= 0)
-                {
-                    textOnLine = textOnLine[..returnIndex];
-                }
-
-                var endIndex = Math.Min(_scrollOffset.Column + charactersInBounds.X, textOnLine.Length);
-                if (endIndex >= _scrollOffset.Column)
-                {
-                    var textToDraw = textOnLine[_scrollOffset.Column..endIndex];
-
-                    drawHelper.DrawText(_font, textToDraw, new Vector2(0, characterSize.Y * line), textColor);
-
-                    if (head <= cursor && cursor <= head + textOnLine.Length)
-                    {
-                        drawHelper.DrawText(_font, "|", new Vector2(
-                            (_lastCursorCoordinates.Column - _scrollOffset.Column - 0.4f) * characterSize.X,
-                            characterSize.Y * line), textColor);
-                        mustStillDrawCursor = false;
-                    }
-                }
-
-                head += textOnLine.Length + 1;
-                if (++line >= charactersInBounds.Y)
-                    break;
-            }
+            drawHelper.DrawText(_font, line, new Vector2(0, characterSize.Y * i), textColor);
         }
 
-        if (mustStillDrawCursor)
-            drawHelper.DrawText(_font, "|", new Vector2(characterSize.X * -0.4f, characterSize.Y * line), textColor);
+        if (!_cursor.IsVisible)
+            return;
+
+        drawHelper.DrawText(
+            _font,
+            "|",
+            new Vector2(
+                (_lastCursorCoordinates.Column - _scrollOffset.Column - 0.4f) * characterSize.X,
+                (_lastCursorCoordinates.Line - _scrollOffset.Line) * characterSize.Y
+            ),
+            textColor
+        );
     }
 }
 
-public abstract class InputField<T> : InputField, IClickable
+public abstract class InputField<T> : InputField
 {
     protected abstract T Value { get; }
 

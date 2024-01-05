@@ -7,6 +7,8 @@ public class EffectWrapper
     private Effect _effect;
     private int _passIndex;
 
+    public event Action<Effect>? EffectChanged;
+
     public EffectParameterCollection Parameters => _effect.Parameters;
     public EffectPass CurrentPass => _effect.CurrentTechnique.Passes[_passIndex];
     public EffectPassCollection Passes => _effect.CurrentTechnique.Passes;
@@ -18,8 +20,13 @@ public class EffectWrapper
 
     public void SetEffect(Effect effect)
     {
+        if (_effect == effect)
+            return;
+
         _effect = effect;
         _passIndex = 0;
+
+        EffectChanged?.Invoke(effect);
     }
 
     public void SetPassIndex(int index)

@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace DyeLab.UI.ScrollableList;
 
-public sealed class ScrollableList<T> : UIElement, IClickable, IScrollable
+public class ScrollableList<T> : UIElement, IClickable, IScrollable
 {
     private IList<ScrollableListItem<T>> _items;
     private readonly SpriteFont _font;
@@ -48,9 +48,9 @@ public sealed class ScrollableList<T> : UIElement, IClickable, IScrollable
     {
     }
 
-    public void OnClick(MouseButton button, Point mousePosition)
+    public void OnClick(MouseButtons buttons, Point mousePosition)
     {
-        if (button != MouseButton.LMB)
+        if (!buttons.HasFlag(MouseButtons.LMB))
             return;
 
         var index = _scroll + mousePosition.Y / _itemHeight;
@@ -91,7 +91,13 @@ public sealed class ScrollableList<T> : UIElement, IClickable, IScrollable
                         ? new Color(40, 40, 40, 255)
                         : new Color(60, 60, 60, 255);
             drawHelper.DrawSolid(new Vector2(0, yPosition), Width, _itemHeight, color);
-            drawHelper.DrawText(_font, _items[i].Label, new Vector2(0, yPosition), Color.White);
+
+            var drawText = _items[i].Label;
+            var textSize = _font.MeasureString(drawText);
+            if (textSize.X > Width)
+                drawText = drawText[..(int)(Width / (textSize.X / drawText.Length))];
+            
+            drawHelper.DrawText(_font, drawText, new Vector2(0, yPosition), Color.White);
         }
     }
 

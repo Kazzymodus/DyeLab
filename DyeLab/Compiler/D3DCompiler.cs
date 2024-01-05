@@ -5,14 +5,17 @@ namespace DyeLab.Compiler;
 
 public static class D3DCompiler
 {
-    public static bool Compile(string code, [NotNullWhen(true)] out byte[]? effectCode)
+    public static bool Compile(string code, [NotNullWhen(true)] out byte[]? effectCode, out string? error)
     {
         effectCode = null;
-        _ = D3DCompile(code, code.Length, null, nint.Zero, nint.Zero, null, "fx_2_0", 0, 0, out var shader, out var errors);
-        if (errors != null)
-            Console.WriteLine(Marshal.PtrToStringAnsi(errors.GetBufferPointer()));
+        error = null;
+        _ = D3DCompile(code, code.Length, null, nint.Zero, nint.Zero, null, "fx_2_0", 0, 0, out var shader,
+            out var errorBlob);
+        if (errorBlob != null)
+            error = Marshal.PtrToStringAnsi(errorBlob.GetBufferPointer());
 
-        if (shader == null) return false;
+        if (shader == null)
+            return false;
 
         var length = shader.GetBufferSize();
         effectCode = new byte[length];
@@ -34,7 +37,7 @@ public static class D3DCompiler
         int flags2,
         out ID3DxBlob? ppShader,
         out ID3DxBlob? ppErrorMsgs);
-    
+
     [ComImport]
     [Guid("8BA5FB08-5195-40e2-AC58-0D989C3A0102")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]

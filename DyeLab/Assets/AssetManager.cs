@@ -11,6 +11,8 @@ public class AssetManager
     private readonly ContentManager _contentManager;
     private readonly Config _config;
     public string[][] ArmorIds { get; } = new string[3][];
+    
+    public string? FallbackShader { get; private set; }
 
     private readonly IList<Texture2D> _terrariaImages;
     private IList<Texture2D> _customImages;
@@ -83,8 +85,9 @@ public class AssetManager
                 var image = _contentManager.Load<Texture2D>(fileName);
                 images.Add(image);
             }
-            catch (ContentLoadException)
+            catch (Exception e) when (e is ContentLoadException or InvalidOperationException or IOException)
             {
+                Console.Write($"Couldn't load file {fileName}: {e}");
             }
         }
 
@@ -94,6 +97,7 @@ public class AssetManager
     public void LoadAssets()
     {
         LoadArmorIds();
+        LoadFallbackShader();
     }
 
     private void LoadArmorIds()
@@ -106,6 +110,11 @@ public class AssetManager
         {
             ArmorIds[index] = File.ReadAllLines($"data/{fileName}.txt");
         }
+    }
+
+    private void LoadFallbackShader()
+    {
+        FallbackShader = File.ReadAllText($"data/baseShader.txt");
     }
 
     public SpriteFont LoadFont(string fontName)

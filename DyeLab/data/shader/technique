@@ -1,0 +1,7 @@
+﻿technique Default
+{	
+   	pass Base
+	{
+		PixelShader = compile ps_2_0 $;
+	}
+}

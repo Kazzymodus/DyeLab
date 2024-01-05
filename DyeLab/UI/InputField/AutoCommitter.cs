@@ -14,7 +14,7 @@ public class AutoCommitter
         _delayInSeconds = delayInSeconds;
     }
 
-    public void Update(GameTime gameTime, Action commitCallback)
+    public void Update(GameTime gameTime, Action commitDelegate)
     {
         if (_resetLastUpdated)
         {
@@ -25,7 +25,7 @@ public class AutoCommitter
         if (!_hasUncommittedChanges || (gameTime.TotalGameTime - _lastUpdated).TotalSeconds < _delayInSeconds)
             return;
         
-        commitCallback();
+        commitDelegate();
         
         _hasUncommittedChanges = false;
         _lastUpdated = gameTime.TotalGameTime;

@@ -11,7 +11,7 @@ public interface IClickable
     
     void OnFocus();
     
-    void OnClick(MouseButton button, Point mousePosition);
+    void OnClick(MouseButtons buttons, Point mousePosition);
 
     void OnLoseFocus();
 }

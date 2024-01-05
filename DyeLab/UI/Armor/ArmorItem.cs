@@ -5,12 +5,12 @@ namespace DyeLab.UI.Armor;
 
 public class ArmorItem
 {
-    public ArmorItem(ScrollableList<int> selectionList, Func<int, Texture2D> loadTextureCallback)
+    public ArmorItem(ScrollableList<int> selectionList, Func<int, Texture2D> loadTextureDelegate)
     {
         _selectionList = selectionList;
         _selectionList.ValueChanged += i =>
         {
-            Texture = i == 0 ? null : loadTextureCallback(i);
+            Texture = i == 0 ? null : loadTextureDelegate(i);
         };
     }
 

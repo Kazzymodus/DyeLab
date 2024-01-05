@@ -1,4 +1,5 @@
 ﻿using DyeLab.Effects;
+using DyeLab.Effects.Constants;
 using DyeLab.Prefabs.DataStructures;
 using DyeLab.UI;
 using DyeLab.UI.InputField;
@@ -19,6 +20,8 @@ public static class ControlPanel
 
     private const int InputFieldWidth = 40;
     private const int InputFieldHeight = 20;
+
+    private const int CheckboxSize = 12;
 
     public static Panel Build(Point position, SpriteFont font,
         IDictionary<string, EffectParameterWrapper> effectParameters, Action<float> timeScalarSetter,
@@ -66,7 +69,7 @@ public static class ControlPanel
         );
 
         CreatePassSlider(controlPanel, 0, 220, font, passSliderData);
-        CreateImageControl(controlPanel, 360, 0, 1, font, imageControlData);
+        CreateImageControl(controlPanel, 0, 300, 1, font, imageControlData);
 
         controlPanel.SizeToContents();
         return controlPanel;
@@ -81,22 +84,31 @@ public static class ControlPanel
         CreateColorSlider(y + SliderPadding * 1, parameter.SetY, Color.Green);
         CreateColorSlider(y + SliderPadding * 2, parameter.SetZ, Color.Blue);
 
-        void CreateColorSlider(int yOffset, Action<float> callback, Color color)
+        void CreateColorSlider(int yOffset, Action<float> action, Color color)
         {
-            CreateSliderWithInputField(parent, x, y + LabelHeight + yOffset, callback,
+            CreateSliderWithInputField(parent, x, y + LabelHeight + yOffset, action,
                 new SliderData(0f, 2f, 1f, color), inputFieldData);
         }
     }
 
     private static void CreatePassSlider(UIElement parent, int x, int y, SpriteFont font, PassSliderData passSliderData)
     {
-        const int width = 280;
+        const int width = 350;
+        const int belowSliderY = 48;
 
         var parentPosition = parent.Position;
 
         CreateLabel(parent, x, y, new LabelData(font, "Pass"));
+        
+        CreateLabel(parent, x + 20, y + belowSliderY - CheckboxSize / 6, new LabelData(font, "Vanilla"));
+        var vanillaCheckbox = Checkbox.New()
+            .SetBounds(parent.Position.X + x, parent.Position.Y + y + belowSliderY, CheckboxSize, CheckboxSize)
+            .Build();
+        vanillaCheckbox.ValueChanged += b => passSliderData.SetActiveEffectDelegate(b ? EffectType.Vanilla : EffectType.Editor);
+        
+        parent.AddChild(vanillaCheckbox);
 
-        var passLabel = CreateLabel(parent, x + width + SliderPadding, y + LabelHeight,
+        var passLabel = CreateLabel(parent, x + (int)(width * 0.5f) + SliderPadding, y + LabelHeight + SliderHeight + 16,
             new LabelData(font, passSliderData.ActiveEffect.CurrentPass.Name, new Vector2(200, 20)));
         var passSlider = Slider.New()
             .SetMinMaxValues(0, passSliderData.ActiveEffect.Passes.Count - 1)
@@ -105,6 +117,13 @@ public static class ControlPanel
         passSlider.ValueChanged += f => passSliderData.ActiveEffect.SetPassIndex((int)Math.Round(f));
         passSlider.ValueChanged += f => passLabel.SetText(passSliderData.ActiveEffect.Passes[(int)Math.Round(f)].Name);
         parent.AddChild(passSlider);
+
+        passSliderData.ActiveEffect.EffectChanged += effect =>
+        {
+            passSlider.SetMinMaxValue(0, effect.CurrentTechnique.Passes.Count - 1);
+            passSlider.SetValue(0);
+            passLabel.SetText(effect.CurrentTechnique.Passes[0].Name);
+        };
     }
 
     private static void CreateImageControl(UIElement parent, int x, int y, int imageIndex, SpriteFont font,
@@ -120,7 +139,7 @@ public static class ControlPanel
             .SetFont(font)
             .SetBounds(parentPosition.X + x, parentPosition.Y + y + 20, 160, 160)
             .Build();
-        var sizeLabel = CreateLabel(parent, x, y + 180, new LabelData(font, "-", new Vector2(160, 20)));
+        var sizeLabel = CreateLabel(parent, x, y + 182, new LabelData(font, "-", new Vector2(160, 20)));
 
         var internalImageScrollList = ScrollableList<int>.New()
             .SetListItems(ImagesToEntries(imageControlData.AssetManager.Images))
@@ -160,14 +179,14 @@ public static class ControlPanel
     }
 
     private static void CreateLabeledSliderWithInputField(UIElement parent, int x, int y,
-        Action<float> valueChangedCallback, LabelData labelData, SliderData sliderData, InputFieldData inputFieldData)
+        Action<float> valueChangedDelegate, LabelData labelData, SliderData sliderData, InputFieldData inputFieldData)
     {
         CreateLabel(parent, x, y, labelData);
-        CreateSliderWithInputField(parent, x, y + LabelHeight, valueChangedCallback, sliderData,
+        CreateSliderWithInputField(parent, x, y + LabelHeight, valueChangedDelegate, sliderData,
             inputFieldData);
     }
 
-    private static void CreateSliderWithInputField(UIElement parent, int x, int y, Action<float> valueChangedCallback,
+    private static void CreateSliderWithInputField(UIElement parent, int x, int y, Action<float> valueChangedDelegate,
         SliderData sliderData, InputFieldData inputFieldData)
     {
         var parentPosition = parent.Position;
@@ -183,10 +202,10 @@ public static class ControlPanel
                 InputFieldHeight)
             .Build();
 
-        slider.ValueChanged += valueChangedCallback;
+        slider.ValueChanged += valueChangedDelegate;
         slider.ValueChanged += inputField.SetValue;
 
-        inputField.Commit += valueChangedCallback;
+        inputField.Commit += valueChangedDelegate;
         inputField.Commit += slider.SetValue;
 
         slider.SetValue(sliderData.StartValue);

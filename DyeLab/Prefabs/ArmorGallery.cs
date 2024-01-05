@@ -31,7 +31,7 @@ public static class ArmorGallery
                     PlayerTile.New()
                         .SetIds(assetManager.ArmorIds[0], assetManager.ArmorIds[1], assetManager.ArmorIds[2])
                         .SetSkinTextures(headSkinTexture, bodySkinTexture, legSkinTexture)
-                        .SetTextureLoadingCallback(assetManager.LoadTerrariaTexture)
+                        .SetTextureLoadingDelegate(assetManager.LoadTerrariaTexture)
                         .SetFont(font)
                         .SetBounds(position.X + j * spaceBetweenX, position.Y + i * spaceBetweenY,
                             Terraria.PlayerWidth, Terraria.PlayerHeight)

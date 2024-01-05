@@ -27,8 +27,9 @@
         <None Update="data\legIds.txt">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
-        <None Include="bin\Debug\net7.0\Content\Images\TestImage3.png" />
-        <None Include="bin\Debug\net7.0\Content\TestImage2.png" />
+        <None Update="data\baseShader.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
         <None Include="Content\Fonts\Consolas.xnb">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>

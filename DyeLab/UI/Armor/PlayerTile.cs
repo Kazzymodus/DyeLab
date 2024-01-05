@@ -59,9 +59,9 @@ public class PlayerTile : UIElement, IClickable
     {
     }
 
-    public void OnClick(MouseButton button, Point mousePosition)
+    public void OnClick(MouseButtons buttons, Point mousePosition)
     {
-        if (button != MouseButton.LMB)
+        if (!buttons.HasFlag(MouseButtons.LMB))
             return;
         
         const float headRatio = 0.5f;
@@ -101,7 +101,7 @@ public class PlayerTile : UIElement, IClickable
 
         private SpriteFont? _font;
 
-        private Func<TerrariaTextureType, int, Texture2D>? _loadTextureCallback;
+        private Func<TerrariaTextureType, int, Texture2D>? _loadTextureDelegate;
 
         public Builder()
         {
@@ -109,7 +109,7 @@ public class PlayerTile : UIElement, IClickable
             AddValidationStep(() => _bodyIds != null, "Body IDs have not been set.");
             AddValidationStep(() => _legIds != null, "Leg IDs have not been set.");
             AddValidationStep(() => _font != null, "Font has not been set.");
-            AddValidationStep(() => _loadTextureCallback != null, "Texture loading callback has not been set.");
+            AddValidationStep(() => _loadTextureDelegate != null, "Texture loading delegate has not been set.");
         }
 
         public Builder SetIds(string[] headIds, string[] bodyIds, string[] legIds)
@@ -128,9 +128,9 @@ public class PlayerTile : UIElement, IClickable
             return this;
         }
 
-        public Builder SetTextureLoadingCallback(Func<TerrariaTextureType, int, Texture2D> callback)
+        public Builder SetTextureLoadingDelegate(Func<TerrariaTextureType, int, Texture2D> func)
         {
-            _loadTextureCallback = callback;
+            _loadTextureDelegate = func;
             return this;
         }
 
@@ -151,9 +151,9 @@ public class PlayerTile : UIElement, IClickable
             var bodyList = CreateList(_bodyIds!, 1);
             var legList = CreateList(_legIds!, 2);
 
-            var headItem = new ArmorItem(headList, i => _loadTextureCallback!(TerrariaTextureType.ArmorHead, i));
-            var bodyItem = new ArmorItem(bodyList, i => _loadTextureCallback!(TerrariaTextureType.ArmorBody, i));
-            var legItem = new ArmorItem(legList, i => _loadTextureCallback!(TerrariaTextureType.ArmorLeg, i));
+            var headItem = new ArmorItem(headList, i => _loadTextureDelegate!(TerrariaTextureType.ArmorHead, i));
+            var bodyItem = new ArmorItem(bodyList, i => _loadTextureDelegate!(TerrariaTextureType.ArmorBody, i));
+            var legItem = new ArmorItem(legList, i => _loadTextureDelegate!(TerrariaTextureType.ArmorLeg, i));
 
             var playerTile = new PlayerTile(new []{headItem, bodyItem, legItem}, _skinTextures);
             playerTile.AddChild(headList);

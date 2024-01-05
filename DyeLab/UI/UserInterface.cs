@@ -17,6 +17,9 @@ public class UserInterface
     private List<IScrollable>[]? _orderedScrollables;
     private IClickable? _currentFocus;
 
+    private MouseButtons _clicksQueued;
+    private int _scrollQueued;
+
     private bool _shouldResortDraws;
 
     public UserInterface AddElement(UIElement uiElement)
@@ -62,6 +65,18 @@ public class UserInterface
         if (!_isInitialized)
             throw new InvalidOperationException("UI is not initialized.");
 
+        if (_clicksQueued != MouseButtons.None)
+        {
+            HandleClick(_clicksQueued);
+            _clicksQueued = MouseButtons.None;
+        }
+
+        if (_scrollQueued != 0)
+        {
+            HandleScroll(_scrollQueued);
+            _scrollQueued = 0;
+        }
+        
         foreach (var element in _elements)
             element.Update(gameTime);
     }
@@ -101,6 +116,11 @@ public class UserInterface
 
     private void OnClick(int button)
     {
+        _clicksQueued |= (MouseButtons)(1 << button);
+    }
+
+    private void HandleClick(MouseButtons buttons)
+    {
         var mousePosition = GetMousePosition();
 
         var previousFocus = _currentFocus;
@@ -108,7 +128,7 @@ public class UserInterface
         {
             if (previousFocus.Bounds.Contains(mousePosition))
             {
-                previousFocus.OnClick((MouseButton)button, mousePosition - previousFocus.Bounds.Location);
+                previousFocus.OnClick(buttons, mousePosition - previousFocus.Bounds.Location);
                 return;
             }
 
@@ -125,13 +145,18 @@ public class UserInterface
 
                 _currentFocus = clickable;
                 clickable.OnFocus();
-                clickable.OnClick((MouseButton)button, mousePosition - clickable.Bounds.Location);
+                clickable.OnClick(buttons, mousePosition - clickable.Bounds.Location);
                 return;
             }
         }
     }
 
     private void OnScroll(int amount)
+    {
+        _scrollQueued += amount;
+    }
+
+    private void HandleScroll(int amount)
     {
         if (amount == 0)
             return;

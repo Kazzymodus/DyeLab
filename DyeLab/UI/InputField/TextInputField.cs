@@ -3,12 +3,12 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace DyeLab.UI.InputField;
 
-public class TextInputField : InputField<string>
+public partial class TextInputField : InputField<string>
 {
     private const int IndentSize = 4;
     private static readonly string Tab = new(' ', IndentSize);
 
-    private static readonly Regex CrlfRegex = new Regex(@"[\n\r]+", RegexOptions.Compiled);
+    private static readonly Regex NewLineRegex = CrlfRegex();
     private readonly bool _isMultiLine;
 
     private TextInputField(SpriteFont font, bool isMultiLine, float? autoCommitDelay)
@@ -17,11 +17,13 @@ public class TextInputField : InputField<string>
         _isMultiLine = isMultiLine;
     }
 
-    protected override string? ValueToString(string value)
+    protected override string ValueToString(string value)
     {
-        if (value == null) throw new ArgumentNullException(nameof(value));
+        if (value == null)
+            throw new ArgumentNullException(nameof(value));
 
-        return CrlfRegex.Replace(value, "\r");
+        var crlfStripped = NewLineRegex.Replace(value, "\n");
+        return crlfStripped.Replace("\t", Tab);
     }
 
     public static Builder New() => new();
@@ -58,7 +60,7 @@ public class TextInputField : InputField<string>
         }
 
         var lastCharacterIndex = CursorPosition - 1;
-        InsertAtCursor('\r');
+        InsertAtCursor(WhiteLineChar);
 
         if (lastCharacterIndex < 0)
             return;
@@ -67,7 +69,7 @@ public class TextInputField : InputField<string>
 
         for (i = lastCharacterIndex; i > 0; i--)
         {
-            if (Content[i] != '\r')
+            if (Content[i] != WhiteLineChar)
                 continue;
 
             i++;
@@ -85,4 +87,7 @@ public class TextInputField : InputField<string>
         if (_isMultiLine)
             InsertAtCursor(Tab);
     }
+
+    [GeneratedRegex("[\\n\\r]{2}", RegexOptions.Compiled)]
+    private static partial Regex CrlfRegex();
 }

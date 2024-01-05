@@ -10,9 +10,9 @@ public class Button : UIElement, IClickable
     {
     }
 
-    public void OnClick(MouseButton button, Point mousePosition)
+    public void OnClick(MouseButtons buttons, Point mousePosition)
     {
-        if (button != MouseButton.LMB)
+        if (!buttons.HasFlag(MouseButtons.LMB))
             return;
     }
 
