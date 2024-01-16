@@ -14,7 +14,7 @@ public class Slider : UIElement, IClickable, IScrollable
 
     private bool _isDragging;
 
-    public event Action<float>? ValueChanged;
+    public event EventHandler<UIElementValueChangedEventArgs<float>>? ValueChanged;
     
     private Slider(float minValue, float maxValue, Color? backgroundColor = null)
     {
@@ -27,6 +27,11 @@ public class Slider : UIElement, IClickable, IScrollable
 
     public void SetValue(float value)
     {
+        SetValue(value, true);
+    }
+
+    private void SetValue(float value, bool isExternal)
+    {
         var clampedValue = Math.Clamp(value, _minValue, _maxValue);
         var newValue = (clampedValue - _minValue) / (_maxValue - _minValue);
         if (float.IsNaN(newValue))
@@ -34,13 +39,16 @@ public class Slider : UIElement, IClickable, IScrollable
 
         if (_sliderValue.Equals(newValue) && value.Equals(clampedValue))
             return;
-            
+
         _sliderValue = newValue;
-        ValueChanged?.Invoke(clampedValue);
+        ValueChanged?.Invoke(this, new UIElementValueChangedEventArgs<float>(clampedValue, isExternal));
     }
 
     public void SetMinMaxValue(float minValue, float maxValue)
     {
+        if (_minValue.Equals(minValue) && _maxValue.Equals(maxValue))
+            return;
+
         if (minValue > maxValue)
             throw new ArgumentException($"{nameof(minValue)} must be smaller than {nameof(maxValue)}");
 
@@ -49,8 +57,8 @@ public class Slider : UIElement, IClickable, IScrollable
 
         var currentValue = GetValue();
         var clampedValue = Math.Clamp(currentValue, minValue, maxValue);
-        if (!currentValue.Equals(clampedValue))
-            SetValue(clampedValue);
+        _sliderValue = (clampedValue - _minValue) / (_maxValue - _minValue);
+        ValueChanged?.Invoke(this, new UIElementValueChangedEventArgs<float>(clampedValue, true));
     }
 
     protected override void UpdateElement(GameTime gameTime)
@@ -66,7 +74,7 @@ public class Slider : UIElement, IClickable, IScrollable
         }
 
         _sliderValue = Math.Clamp((mouseState.X - X) / (float)Width, 0f, 1f);
-        ValueChanged?.Invoke(GetValue());
+        ValueChanged?.Invoke(this, new UIElementValueChangedEventArgs<float>(GetValue()));
     }
 
     protected override void DrawElement(DrawHelper drawHelper)
@@ -95,7 +103,7 @@ public class Slider : UIElement, IClickable, IScrollable
     public void OnScroll(int amount)
     {
         var currentValue = GetValue();
-        SetValue(currentValue - amount);
+        SetValue(currentValue - amount, false);
     }
 
     public static Builder New() => new();

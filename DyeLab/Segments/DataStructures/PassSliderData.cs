@@ -1,7 +1,7 @@
 ﻿using DyeLab.Effects;
 using DyeLab.Effects.Constants;
 
-namespace DyeLab.Prefabs.DataStructures;
+namespace DyeLab.Segments.DataStructures;
 
 public class PassSliderData
 {

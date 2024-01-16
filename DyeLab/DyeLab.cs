@@ -1,14 +1,14 @@
-﻿using DyeLab.Assets;
+﻿using System.Diagnostics.CodeAnalysis;
+using DyeLab.Assets;
 using DyeLab.Compiler;
 using DyeLab.Configuration;
 using DyeLab.Editing;
 using DyeLab.Effects;
 using DyeLab.Effects.Constants;
-using DyeLab.Prefabs;
-using DyeLab.Prefabs.DataStructures;
+using DyeLab.Segments;
+using DyeLab.Segments.DataStructures;
 using DyeLab.UI;
 using DyeLab.UI.Exceptions;
-using DyeLab.UI.InputField;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SDL2;
@@ -27,6 +27,7 @@ namespace DyeLab
         private EffectType _activeEffectType = EffectType.None;
         private EffectWrapper? _activeEffect;
 
+        private readonly ICollection<Segment> _segments = new List<Segment>();
         private UserInterface? _ui;
         private DrawHelper? _drawHelper;
 
@@ -130,15 +131,14 @@ namespace DyeLab
         protected override void BeginRun()
         {
             var effectCode = _fxFileManager!.ReadOpenedFile();
-            CompileAndReload(effectCode, out var isSuccessful);
 
-            _activeEffectType = isSuccessful ? EffectType.Editor : EffectType.Fallback;
+            _activeEffectType = CompileAndReload(effectCode, out var error) ? EffectType.Editor : EffectType.Fallback;
             _activeEffect = new EffectWrapper(_effects[_activeEffectType]);
             _drawHelper = new DrawHelper(_spriteBatch!, _activeEffect);
 
             try
             {
-                BuildUI();
+                BuildUI(error);
             }
             catch (InvalidUIElementException e)
             {
@@ -169,14 +169,14 @@ namespace DyeLab
             SDL.SDL_ShowMessageBox(ref messageBoxData, out _);
         }
 
-        private void BuildUI()
+        private void BuildUI(string? shaderError)
         {
             const int editorX = 10;
             const int editorY = 20;
             const int editorWidth = 500;
             const int editorHeight = 480;
 
-            const int galleryX = 60;
+            const int galleryX = 20;
             const int galleryY = 20;
             const int galleryWidth = 180;
 
@@ -188,42 +188,15 @@ namespace DyeLab
 
             var armorShaderPanel = new Panel();
 
-            var editor = TextInputField.New()
-                .MultiLine()
-                .SetFont(consolasFont)
-                .SetBounds(editorX, editorY, editorWidth, editorHeight)
-                .Build();
-            editor.SetValue(_fxFileManager!.ReadOpenedFile());
-            editor.Commit += s => CompileAndReload(s, out _);
-            _fxFileManager.Changed += editor.SetValue;
-            var errorLabel = Label.New()
-                .SetFont(consolasFont)
-                .SetColor(Color.White)
-                .SetText("No errors")
-                .SetBounds(editorX, editorHeight + 20, editorWidth, 20)
-                .Build();
-            CompileResult += errorLabel.SetText;
+            var editorPanel = EditorPanel.Build(new Point(editorX, editorY), consolasFont, _fxFileManager!,
+                CompileAndReload, shaderError);
 
             x += editorX + editorWidth;
 
             var galleryPosition = new Point(editorWidth + galleryX, galleryY);
-            var armorPanel = ArmorGallery.Build(galleryPosition, consolasFont, _assetManager);
-            galleryPosition.Y += 260;
-            var solidPanel = SolidGallery.Build(galleryPosition);
-
-            var galleryPanel = Panel.New()
-                .AddChild(armorPanel)
-                .AddChild(solidPanel)
-                .Build();
-
-            galleryPanel.SizeToContents();
-
-            // var galleryTab = TabBar.New()
-            //     .AddTab("Armors", )
-            //     .AddTab("Solids", )
-            //     .SetFont(consolasFont)
-            //     .SetBounds(x + galleryTabX, galleryTabY, galleryTabWidth, galleryTabHeight)
-            //     .Build();
+            var armorGallery = new PlayerFrameGallery(consolasFont, _assetManager);
+            _segments.Add(armorGallery);
+            var armorGalleryPanel = armorGallery.BuildUI(galleryPosition);
 
             x += galleryX + galleryWidth;
 
@@ -232,9 +205,9 @@ namespace DyeLab
                 f => _timeScalar = f, new PassSliderData(_activeEffect!, SetActiveEffect),
                 new ImageControlData(_assetManager, GraphicsDevice));
 
-            armorShaderPanel.AddChild(editor);
-            armorShaderPanel.AddChild(errorLabel);
-            armorShaderPanel.AddChild(galleryPanel);
+            armorShaderPanel.AddChild(editorPanel);
+
+            armorShaderPanel.AddChild(armorGalleryPanel);
             armorShaderPanel.AddChild(controlPanel);
 
             _ui = new UserInterface()
@@ -253,30 +226,34 @@ namespace DyeLab
             _activeEffect!.SetEffect(_effects[EffectType.Fallback]);
         }
 
-        private event Action<string>? CompileResult;
-        
-        private void CompileAndReload(string shaderText, out bool isSuccessful)
+        private bool CompileAndReload(string shaderText, [NotNullWhen(false)] out string? error)
         {
-            isSuccessful = ShaderCompiler.Compile(shaderText, out var code, out var error);
-            CompileResult?.Invoke(error ?? "No errors");
-            
-            if (!isSuccessful)
-                return;
+            if (!ShaderCompiler.Compile(shaderText, out var code, out error) || error != null)
+                return false;
 
             if (_effects.TryGetValue(EffectType.Editor, out var editorShader))
                 editorShader.Dispose();
 
             var effect = new Effect(GraphicsDevice, code);
             _effects[EffectType.Editor] = effect;
+            if (_activeEffectType == EffectType.Fallback)
+                _activeEffectType = EffectType.Editor;
+
             if (_activeEffectType == EffectType.Editor)
                 _activeEffect!.SetEffect(effect);
+
+            return true;
         }
 
         protected override void Update(GameTime gameTime)
         {
             if (!IsActive) return;
 
+            foreach (var segment in _segments)
+                segment.Update(gameTime);
+
             _ui!.Update(gameTime);
+            _fxFileManager?.Update();
 
             _shaderTime += (float)gameTime.ElapsedGameTime.TotalSeconds * _timeScalar;
             _shaderTime %= 3600;

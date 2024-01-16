@@ -12,7 +12,7 @@ public abstract class InputField : UIElement, IClickable, IScrollable
     protected const char WhiteLineChar = '\n';
 
     private bool _takingInput;
-    public bool IsReadOnly { private get; set; }
+    private readonly bool _isReadOnly;
 
     protected StringBuilder Content { get; } = new();
     private string _cachedText = string.Empty;
@@ -34,7 +34,6 @@ public abstract class InputField : UIElement, IClickable, IScrollable
     private TextCoordinates _lastCursorCoordinates;
     private TextCoordinates _scrollOffset;
 
-    private const float HoldDelay = 0.75f;
     private readonly ICollection<CursorDirectionControl> _cursorDirectionControl = new List<CursorDirectionControl>();
 
     private readonly SpriteFont _font;
@@ -43,11 +42,12 @@ public abstract class InputField : UIElement, IClickable, IScrollable
 
     private readonly AutoCommitter? _autoCommitter;
 
-    protected InputField(SpriteFont font, float? autoCommitDelay = null)
+    protected InputField(SpriteFont font, float? autoCommitDelay, bool isReadOnly)
     {
         _font = font;
         if (autoCommitDelay.HasValue)
             _autoCommitter = new AutoCommitter(autoCommitDelay.Value);
+        _isReadOnly = isReadOnly;
         _cursor = new Cursor(1f, 1f);
 
         _cursorDirectionControl.Add(new CursorDirectionControl(Keys.Up, () => MoveCursorVertically(-1)));
@@ -65,7 +65,7 @@ public abstract class InputField : UIElement, IClickable, IScrollable
 
     public void OnFocus()
     {
-        if (IsReadOnly)
+        if (_isReadOnly)
             return;
 
         StartTextInput();
@@ -73,10 +73,7 @@ public abstract class InputField : UIElement, IClickable, IScrollable
 
     public void OnClick(MouseButtons buttons, Point mousePosition)
     {
-        if (IsReadOnly)
-            return;
-
-        if (!_takingInput)
+        if (!_isReadOnly && !_takingInput)
         {
             StartTextInput();
         }
@@ -93,6 +90,8 @@ public abstract class InputField : UIElement, IClickable, IScrollable
         const int scrollBuffer = 4;
         var maxLinesInBounds = (int)(Height / CharacterSize.Y);
         var maxLineScroll = TextPositionToCoordinates(_cachedText.Length).Line - maxLinesInBounds + scrollBuffer;
+        if (maxLineScroll <= 0)
+            return;
 
         var possibleAmount = Math.Clamp(amount, _scrollOffset.Line - maxLineScroll, _scrollOffset.Line);
         if (possibleAmount == 0)
@@ -104,7 +103,7 @@ public abstract class InputField : UIElement, IClickable, IScrollable
 
     private void ParseInput(char input)
     {
-        if (IsReadOnly || !_takingInput)
+        if (_isReadOnly || !_takingInput)
             return;
 
         const char backspace = '\b';
@@ -174,11 +173,10 @@ public abstract class InputField : UIElement, IClickable, IScrollable
             }
 
             var endIndex = Math.Min(_scrollOffset.Column + charactersInBounds.X, textOnLine.Length);
-            if (endIndex >= _scrollOffset.Column)
-            {
-                var textToDraw = textOnLine[_scrollOffset.Column..endIndex];
-                _cachedLines[line] = textToDraw;
-            }
+            var textToDraw = endIndex >= _scrollOffset.Column
+                ? textOnLine[_scrollOffset.Column..endIndex]
+                : string.Empty;
+            _cachedLines[line] = textToDraw;
 
             head += textOnLine.Length + 1;
             if (++line >= charactersInBounds.Y)
@@ -262,7 +260,7 @@ public abstract class InputField : UIElement, IClickable, IScrollable
     {
     }
 
-    protected abstract void CommitChange();
+    protected abstract void CommitChange(bool isExternal = false);
 
     public void OnLoseFocus()
     {
@@ -271,7 +269,7 @@ public abstract class InputField : UIElement, IClickable, IScrollable
 
     private void StartTextInput()
     {
-        if (IsReadOnly || _takingInput)
+        if (_isReadOnly || _takingInput)
             return;
 
         _cursor.Enable();
@@ -294,21 +292,21 @@ public abstract class InputField : UIElement, IClickable, IScrollable
 
     protected override void UpdateElement(GameTime gameTime)
     {
-        if (!_takingInput)
-            return;
-
         var keyboardState = Keyboard.GetState();
-        if (keyboardState.IsKeyDown(Keys.Escape))
+        if (_takingInput)
         {
-            StopTextInput();
-            return;
+            _autoCommitter?.Update(gameTime, CommitChange);
+
+            if (keyboardState.IsKeyDown(Keys.Escape))
+            {
+                StopTextInput();
+            }
         }
 
         foreach (var control in _cursorDirectionControl)
             control.Update(keyboardState, gameTime);
 
-        _cursor.Update(gameTime, keyboardState, out var cursorMoved);
-        _autoCommitter?.Update(gameTime, CommitChange);
+        _cursor.Update(gameTime, out var cursorMoved);
 
         if (!cursorMoved)
             return;
@@ -329,9 +327,12 @@ public abstract class InputField : UIElement, IClickable, IScrollable
 
         var columnOffset = cursorCoordinates.Column - _scrollOffset.Column;
 
+        var scrollChanged = false;
+
         if (columnOffset > charactersInBounds.X)
         {
             _scrollOffset.Column += columnOffset - charactersInBounds.X;
+            scrollChanged = true;
         }
 
         const int leftScrollPadding = 3;
@@ -339,6 +340,7 @@ public abstract class InputField : UIElement, IClickable, IScrollable
         if (columnOffset < 0)
         {
             _scrollOffset.Column += Math.Max(columnOffset - leftScrollPadding, -_scrollOffset.Column);
+            scrollChanged = true;
         }
 
         var lineOffset = cursorCoordinates.Line - _scrollOffset.Line;
@@ -346,14 +348,17 @@ public abstract class InputField : UIElement, IClickable, IScrollable
         if (lineOffset >= charactersInBounds.Y)
         {
             _scrollOffset.Line += lineOffset - (charactersInBounds.Y - 1);
+            scrollChanged = true;
         }
 
         if (lineOffset < 0)
         {
             _scrollOffset.Line += lineOffset;
+            scrollChanged = true;
         }
 
-        PrepareDrawLines();
+        if (scrollChanged)
+            PrepareDrawLines();
     }
 
     private TextCoordinates TextPositionToCoordinates(int position)
@@ -411,7 +416,9 @@ public abstract class InputField : UIElement, IClickable, IScrollable
 
     protected override void DrawElement(DrawHelper drawHelper)
     {
-        drawHelper.DrawSolid(Vector2.Zero, Width, Height, IsReadOnly ? Color.LightGray : Color.White);
+        const byte grayTint = 190;
+        drawHelper.DrawSolid(Vector2.Zero, Width, Height,
+            _isReadOnly ? new Color(grayTint, grayTint, grayTint, byte.MaxValue) : Color.White);
 
         var textColor = Color.Black;
         var characterSize = CharacterSize;
@@ -444,10 +451,10 @@ public abstract class InputField<T> : InputField
 {
     protected abstract T Value { get; }
 
-    public event Action<T>? Commit;
+    public event EventHandler<UIElementValueChangedEventArgs<T>>? Commit;
 
-    protected InputField(SpriteFont font, float? autoCommitDelay = null)
-        : base(font, autoCommitDelay)
+    protected InputField(SpriteFont font, float? autoCommitDelay, bool isReadOnly)
+        : base(font, autoCommitDelay, isReadOnly)
     {
     }
 
@@ -464,7 +471,7 @@ public abstract class InputField<T> : InputField
         Content.Append(stringValue);
         CacheDrawText();
 
-        CommitChange();
+        CommitChange(true);
     }
 
     protected virtual string? ValueToString(T value)
@@ -473,15 +480,16 @@ public abstract class InputField<T> : InputField
         return value.ToString();
     }
 
-    protected override void CommitChange()
+    protected override void CommitChange(bool isExternal = false)
     {
-        Commit?.Invoke(Value);
+        Commit?.Invoke(this, new UIElementValueChangedEventArgs<T>(Value, isExternal));
     }
 
     public abstract class InputFieldBuilder : UIElementBuilder<InputField<T>>
     {
         protected float? AutoCommitDelay { get; private set; }
         protected SpriteFont? Font { get; private set; }
+        protected bool IsReadOnly { get; private set; }
 
         protected InputFieldBuilder()
         {
@@ -497,6 +505,12 @@ public abstract class InputField<T> : InputField
         public InputFieldBuilder AutoCommit(int delayInMilliseconds)
         {
             AutoCommitDelay = delayInMilliseconds;
+            return this;
+        }
+
+        public InputFieldBuilder ReadOnly()
+        {
+            IsReadOnly = true;
             return this;
         }
     }

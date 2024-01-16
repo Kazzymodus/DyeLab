@@ -5,8 +5,8 @@ namespace DyeLab.UI.InputField;
 
 public class FloatInputField : InputField<float>
 {
-    private FloatInputField(SpriteFont font, float? autoCommitDelay)
-        : base(font, autoCommitDelay)
+    private FloatInputField(SpriteFont font, float? autoCommitDelay, bool isReadOnly)
+        : base(font, autoCommitDelay, isReadOnly)
     {
     }
 
@@ -16,7 +16,7 @@ public class FloatInputField : InputField<float>
     {
         protected override InputField<float> BuildElement()
         {
-            return new FloatInputField(Font!, AutoCommitDelay);
+            return new FloatInputField(Font!, AutoCommitDelay, IsReadOnly);
         }
     }
 
@@ -25,7 +25,7 @@ public class FloatInputField : InputField<float>
             ? f
             : 0;
 
-    protected override string? ValueToString(float value)
+    protected override string ValueToString(float value)
     {
         return value.ToString("F2").Replace(',', '.');
     }

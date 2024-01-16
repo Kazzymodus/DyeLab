@@ -1,6 +1,7 @@
-﻿using System.Runtime.CompilerServices;
+﻿using DyeLab.Assets;
 using DyeLab.Assets.Constants;
 using DyeLab.Input.Constants;
+using DyeLab.UI.Armor.Constants;
 using DyeLab.UI.Constants;
 using DyeLab.UI.Interfaces;
 using DyeLab.UI.ScrollableList;
@@ -11,47 +12,68 @@ namespace DyeLab.UI.Armor;
 
 public class PlayerTile : UIElement, IClickable
 {
-    private readonly Texture2D?[] _playerSkin;
+    private readonly SkinTextureSet _skinTextures;
+    private readonly ArmorSourceRectangles _sourceRectangles;
     private readonly ArmorItem[] _items;
+    private int _frame;
 
-    private PlayerTile(ArmorItem[] armorItems, Texture2D?[] skins)
+    private PlayerTile(ArmorItem[] armorItems, SkinTextureSet skinTextures)
     {
-        ThrowIfLengthNotThree(armorItems);
-        ThrowIfLengthNotThree(skins);
+        if (armorItems.Length != 3)
+            throw new ArgumentException($"{nameof(armorItems)} must have a length of 3.");
 
         _items = armorItems;
-        _playerSkin = skins;
+        _skinTextures = skinTextures;
+        _sourceRectangles = new ArmorSourceRectangles();
+        _sourceRectangles.Calculate(0);
+    }
 
-        void ThrowIfLengthNotThree(Array property, [CallerArgumentExpression("property")] string? propertyName = null)
-        {
-            if (property.Length != 3)
-                throw new ArgumentException($"{propertyName} must have a length of 3.");
-        }
+    public void SetFrame(int frame)
+    {
+        if (frame == _frame)
+            return;
+
+        if (frame is < 0 or >= Terraria.PlayerFrames)
+            throw new ArgumentOutOfRangeException(nameof(frame), frame,
+                $"Frame must be between 0 and {Terraria.PlayerFrames - 1}");
+
+        _frame = frame;
+        _sourceRectangles.Calculate(frame);
     }
 
     protected override void DrawElement(DrawHelper drawHelper)
     {
-        DrawIfNotNull(_playerSkin[0], false);
-        DrawChestArmorIfNotNull(_playerSkin[1], false);
-        DrawIfNotNull(_playerSkin[2], false);
-        
-        DrawIfNotNull(_items[0].Texture, true);
-        DrawChestArmorIfNotNull(_items[1].Texture, true);
-        DrawIfNotNull(_items[2].Texture, true);
+        var bounce = _frame >= 7 && _frame % 7 < 3;
+        var bouncePosition = new Vector2(0, bounce ? -2f : 0f);
+        DrawIfNotNull(_skinTextures.Head, Vector2.Zero, _sourceRectangles.Legacy, false);
+        DrawIfNotNull(_skinTextures.Arms, bouncePosition, _sourceRectangles.BackArm, false);
+        DrawIfNotNull(_skinTextures.Body, bouncePosition, _sourceRectangles.Torso, false);
+        DrawIfNotNull(_skinTextures.Legs, Vector2.Zero, _sourceRectangles.Legacy, false);
+        DrawIfNotNull(_skinTextures.Arms, bouncePosition, _sourceRectangles.FrontArm, false);
 
-        void DrawIfNotNull(Texture2D? texture, bool withEffect)
+        DrawIfNotNull(_items[0].Texture, Vector2.Zero, _sourceRectangles.Legacy, true);
+        DrawChestArmorIfNotNull(_items[1].Texture, true);
+        DrawIfNotNull(_items[2].Texture, Vector2.Zero, _sourceRectangles.Legacy, true);
+
+        void DrawIfNotNull(Texture2D? texture, Vector2 position, Rectangle sourceRectangle, bool withEffect)
         {
             if (texture == null) return;
-            drawHelper.DrawTexture(texture, Vector2.Zero, Terraria.PlayerSourceRectangle, Color.White, withEffect);
+            drawHelper.DrawTexture(texture, position, sourceRectangle, Color.White, withEffect);
         }
 
         void DrawChestArmorIfNotNull(Texture2D? texture, bool withEffect)
         {
             if (texture == null) return;
-            drawHelper.DrawTexture(texture, Vector2.Zero, Terraria.BodyBackArmSourceRectangle, Color.White, withEffect);
-            drawHelper.DrawTexture(texture, Vector2.Zero, Terraria.PlayerSourceRectangle, Color.White, withEffect);
-            drawHelper.DrawTexture(texture, Vector2.Zero, Terraria.BodyFrontArmSourceRectangle, Color.White, withEffect);
-            drawHelper.DrawTexture(texture, Vector2.Zero, Terraria.BodySpaulderSourceRectangle, Color.White, withEffect);
+            
+            drawHelper.DrawTexture(texture, bouncePosition, _sourceRectangles.BackArm, Color.White, withEffect);
+            drawHelper.DrawTexture(texture, bouncePosition, _sourceRectangles.Torso, Color.White, withEffect);
+            if (_sourceRectangles.ShoulderDrawMode == ShoulderDrawMode.Under)
+                DrawShoulder();
+            drawHelper.DrawTexture(texture, bouncePosition, _sourceRectangles.FrontArm, Color.White, withEffect);
+            if (_sourceRectangles.ShoulderDrawMode == ShoulderDrawMode.Over)
+                DrawShoulder();
+
+            void DrawShoulder() => drawHelper.DrawTexture(texture, bouncePosition, _sourceRectangles.Shoulder, Color.White, withEffect);
         }
     }
 
@@ -93,11 +115,11 @@ public class PlayerTile : UIElement, IClickable
 
     public class Builder : UIElementBuilder<PlayerTile>
     {
-        private string[]? _headIds;
-        private string[]? _bodyIds;
-        private string[]? _legIds;
+        private ExternalTextureKey[]? _headKeys;
+        private ExternalTextureKey[]? _bodyKeys;
+        private ExternalTextureKey[]? _legKeys;
 
-        private readonly Texture2D?[] _skinTextures = new Texture2D?[3];
+        private SkinTextureSet? _skinTextures;
 
         private SpriteFont? _font;
 
@@ -105,26 +127,24 @@ public class PlayerTile : UIElement, IClickable
 
         public Builder()
         {
-            AddValidationStep(() => _headIds != null, "Head IDs have not been set.");
-            AddValidationStep(() => _bodyIds != null, "Body IDs have not been set.");
-            AddValidationStep(() => _legIds != null, "Leg IDs have not been set.");
+            AddValidationStep(() => _headKeys != null, "Head texture keys have not been set.");
+            AddValidationStep(() => _bodyKeys != null, "Body texture keys have not been set.");
+            AddValidationStep(() => _legKeys != null, "Leg texture keys have not been set.");
             AddValidationStep(() => _font != null, "Font has not been set.");
             AddValidationStep(() => _loadTextureDelegate != null, "Texture loading delegate has not been set.");
         }
 
-        public Builder SetIds(string[] headIds, string[] bodyIds, string[] legIds)
+        public Builder SetIds(ExternalTextureKey[] headKeys, ExternalTextureKey[] bodyKeys, ExternalTextureKey[] legKeys)
         {
-            _headIds = headIds;
-            _bodyIds = bodyIds;
-            _legIds = legIds;
+            _headKeys = headKeys;
+            _bodyKeys = bodyKeys;
+            _legKeys = legKeys;
             return this;
         }
 
-        public Builder SetSkinTextures(Texture2D? head, Texture2D? body, Texture2D? legs)
+        public Builder SetSkinTextures(SkinTextureSet skinTextures)
         {
-            _skinTextures[0] = head;
-            _skinTextures[1] = body;
-            _skinTextures[2] = legs;
+            _skinTextures = skinTextures;
             return this;
         }
 
@@ -147,24 +167,24 @@ public class PlayerTile : UIElement, IClickable
             const int listWidth = 200;
             const int listHeight = 200;
             
-            var headList = CreateList(_headIds!, 0);
-            var bodyList = CreateList(_bodyIds!, 1);
-            var legList = CreateList(_legIds!, 2);
+            var headList = CreateList(_headKeys!, 0);
+            var bodyList = CreateList(_bodyKeys!, 1);
+            var legList = CreateList(_legKeys!, 2);
 
             var headItem = new ArmorItem(headList, i => _loadTextureDelegate!(TerrariaTextureType.ArmorHead, i));
             var bodyItem = new ArmorItem(bodyList, i => _loadTextureDelegate!(TerrariaTextureType.ArmorBody, i));
             var legItem = new ArmorItem(legList, i => _loadTextureDelegate!(TerrariaTextureType.ArmorLeg, i));
 
-            var playerTile = new PlayerTile(new []{headItem, bodyItem, legItem}, _skinTextures);
+            var playerTile = new PlayerTile(new []{headItem, bodyItem, legItem}, _skinTextures ?? new SkinTextureSet());
             playerTile.AddChild(headList);
             playerTile.AddChild(bodyList);
             playerTile.AddChild(legList);
             return playerTile;
 
-            ScrollableList<int> CreateList(IEnumerable<string> data, int index)
+            ScrollableList<int> CreateList(IEnumerable<ExternalTextureKey> data, int index)
             {
                 var list = ScrollableList<int>.New()
-                    .SetListItems(data.Select((x, i) => new ScrollableListItem<int>(x, i)).ToArray())
+                    .SetListItems(data.Select((x, i) => new ScrollableListItem<int>(x.TextureName, x.ExternalId)).ToArray())
                     .SetItemHeight(listItemHeight)
                     .SetFont(_font!)
                     .MarkAsPopup()

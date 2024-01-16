@@ -1,14 +1,13 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace DyeLab.UI;
 
 public class Label : UIElement
 {
-    private string _text;
     private readonly SpriteFont _font;
-    private readonly Color _color;
+    private string _text;
+    private Color _color;
 
     private string _drawText = string.Empty;
 
@@ -25,6 +24,11 @@ public class Label : UIElement
         CalculateDrawText();
     }
 
+    public void SetColor(Color color)
+    {
+        _color = color;
+    }
+
     public override void SetBounds(int x, int y, int width, int height)
     {
         base.SetBounds(x, y, width, height);
@@ -32,7 +36,7 @@ public class Label : UIElement
         CalculateDrawText();
     }
 
-    public void CalculateDrawText()
+    private void CalculateDrawText()
     {
         var boundsInCharacters = new Vector2(Width, Height) / _font.MeasureString("*");
         if (boundsInCharacters.X == 0 || boundsInCharacters.Y == 0)

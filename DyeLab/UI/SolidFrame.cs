@@ -9,6 +9,7 @@ public class SolidFrame : UIElement
     private readonly int _solidHeight;
     private readonly Color _color;
     private readonly bool _drawWithEffect;
+    private Rectangle _sourceRectangle;
 
     private SolidFrame(int solidWidth, int solidHeight, Color? color, bool drawWithEffect)
     {
@@ -19,6 +20,7 @@ public class SolidFrame : UIElement
         _solidHeight = solidHeight;
         _color = color ?? Color.White;
         _drawWithEffect = drawWithEffect;
+        _sourceRectangle = new Rectangle(0, 0, Width, Height);
 
         void ThrowIfZeroOrNegative(int property, [CallerArgumentExpression("property")] string? propertyName = null)
         {
@@ -28,13 +30,26 @@ public class SolidFrame : UIElement
         }
     }
 
+    public override void SetBounds(int x, int y, int width, int height)
+    {
+        base.SetBounds(x, y, width, height);
+
+        _sourceRectangle.Width = width;
+        _sourceRectangle.Height = height;
+    }
+
+    public void SetSourceRectanglePosition(int x, int y)
+    {
+        _sourceRectangle = new Rectangle(x, y, Width, Height);
+    }
+
     protected override void DrawElement(DrawHelper drawHelper)
     {
-        drawHelper.DrawColoredSolid(Vector2.Zero, _solidWidth, _solidHeight, new Rectangle(0, 0, Width, Height), _color, _drawWithEffect);
+        drawHelper.DrawColoredSolid(Vector2.Zero, _solidWidth, _solidHeight, _sourceRectangle, _color, _drawWithEffect);
     }
 
     public static Builder New() => new();
-    
+
     public class Builder : UIElementBuilder<SolidFrame>
     {
         private int _solidWidth;
@@ -57,7 +72,7 @@ public class SolidFrame : UIElement
             _solidHeight = height;
 
             return this;
-            
+
             void ThrowIfZeroOrNegative(int property, [CallerArgumentExpression("property")] string? propertyName = null)
             {
                 if (property <= 0)
@@ -65,7 +80,7 @@ public class SolidFrame : UIElement
                         $"{propertyName} must be larger than zero.");
             }
         }
-        
+
         public Builder SetColor(Color color)
         {
             _color = color;

@@ -1,7 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace DyeLab.Prefabs.DataStructures;
+namespace DyeLab.Segments.DataStructures;
 
 public class LabelData
 {

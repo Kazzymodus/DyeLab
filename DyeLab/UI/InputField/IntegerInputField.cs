@@ -5,8 +5,8 @@ namespace DyeLab.UI.InputField;
 
 public class IntegerInputField : InputField<int>
 {
-    private IntegerInputField(SpriteFont font, float? autoCommitDelay)
-        : base(font, autoCommitDelay)
+    private IntegerInputField(SpriteFont font, float? autoCommitDelay, bool isReadOnly)
+        : base(font, autoCommitDelay, isReadOnly)
     {
     }
 
@@ -16,7 +16,7 @@ public class IntegerInputField : InputField<int>
     {
         protected override InputField<int> BuildElement()
         {
-            return new IntegerInputField(Font!, AutoCommitDelay);
+            return new IntegerInputField(Font!, AutoCommitDelay, IsReadOnly);
         }
     }
 

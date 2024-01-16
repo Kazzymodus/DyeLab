@@ -11,8 +11,8 @@ public partial class TextInputField : InputField<string>
     private static readonly Regex NewLineRegex = CrlfRegex();
     private readonly bool _isMultiLine;
 
-    private TextInputField(SpriteFont font, bool isMultiLine, float? autoCommitDelay)
-        : base(font, autoCommitDelay)
+    private TextInputField(SpriteFont font, bool isMultiLine, float? autoCommitDelay, bool isReadOnly)
+        : base(font, autoCommitDelay, isReadOnly)
     {
         _isMultiLine = isMultiLine;
     }
@@ -40,7 +40,7 @@ public partial class TextInputField : InputField<string>
 
         protected override InputField<string> BuildElement()
         {
-            return new TextInputField(Font!, _isMultiLine, AutoCommitDelay);
+            return new TextInputField(Font!, _isMultiLine, AutoCommitDelay, IsReadOnly);
         }
     }
 
@@ -88,6 +88,6 @@ public partial class TextInputField : InputField<string>
             InsertAtCursor(Tab);
     }
 
-    [GeneratedRegex("[\\n\\r]{2}", RegexOptions.Compiled)]
+    [GeneratedRegex("\r\n?", RegexOptions.Compiled)]
     private static partial Regex CrlfRegex();
 }

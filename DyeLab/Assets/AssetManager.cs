@@ -10,7 +10,7 @@ public class AssetManager
 {
     private readonly ContentManager _contentManager;
     private readonly Config _config;
-    public string[][] ArmorIds { get; } = new string[3][];
+    public ExternalTextureKey[][] ArmorTextures { get; } = new ExternalTextureKey[3][];
     
     public string? FallbackShader { get; private set; }
 
@@ -23,8 +23,8 @@ public class AssetManager
     private const string FontsDirectory = "Fonts";
     private const string ImagesDirectory = "Images";
 
-    private readonly FileSystemWatcher _imageWatcher =
-        new(ContentDirectory + Path.DirectorySeparatorChar + ImagesDirectory);
+    // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
+    private readonly FileSystemWatcher? _imageWatcher;
 
     public event Action<ICollection<Texture2D>>? ImagesUpdated;
 
@@ -44,13 +44,17 @@ public class AssetManager
 
         CreateDirectories();
 
-        _imageWatcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
-        _imageWatcher.Filter = "*.png";
-        _imageWatcher.EnableRaisingEvents = true;
-        _imageWatcher.Created += OnImagesChanged;
-        _imageWatcher.Changed += OnImagesChanged;
-        _imageWatcher.Renamed += OnImagesChanged;
-        _imageWatcher.Deleted += OnImagesChanged;
+        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        {
+            _imageWatcher = new FileSystemWatcher(ContentDirectory + Path.DirectorySeparatorChar + ImagesDirectory);
+            _imageWatcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
+            _imageWatcher.Filter = "*.png";
+            _imageWatcher.EnableRaisingEvents = true;
+            _imageWatcher.Created += OnImagesChanged;
+            _imageWatcher.Changed += OnImagesChanged;
+            _imageWatcher.Renamed += OnImagesChanged;
+            _imageWatcher.Deleted += OnImagesChanged;
+        }
 
         GetCustomImages();
 
@@ -108,7 +112,12 @@ public class AssetManager
 
         void LoadIds(int index, string fileName)
         {
-            ArmorIds[index] = File.ReadAllLines($"data/{fileName}.txt");
+             var lines = File.ReadAllLines($"data/{fileName}.txt");
+             ArmorTextures[index] = lines.Select(x =>
+             {
+                 var split = x.Split(':');
+                 return new ExternalTextureKey(split[0], int.Parse(split[1]));
+             }).ToArray();
         }
     }
 

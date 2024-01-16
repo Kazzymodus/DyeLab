@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 
-namespace DyeLab.Prefabs.DataStructures;
+namespace DyeLab.Segments.DataStructures;
 
 public class SliderData
 {

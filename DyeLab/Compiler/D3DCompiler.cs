@@ -5,7 +5,7 @@ namespace DyeLab.Compiler;
 
 public static class D3DCompiler
 {
-    public static bool Compile(string code, [NotNullWhen(true)] out byte[]? effectCode, out string? error)
+    public static bool Compile(string code, [NotNullWhen(true)] out byte[]? effectCode, [NotNullWhen(false)]out string? error)
     {
         effectCode = null;
         error = null;
@@ -15,7 +15,10 @@ public static class D3DCompiler
             error = Marshal.PtrToStringAnsi(errorBlob.GetBufferPointer());
 
         if (shader == null)
+        {
+            error ??= "Unknown error";
             return false;
+        }
 
         var length = shader.GetBufferSize();
         effectCode = new byte[length];

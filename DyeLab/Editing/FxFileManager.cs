@@ -2,13 +2,19 @@
 
 namespace DyeLab.Editing;
 
-public class FxFileManager : IDisposable
+public sealed class FxFileManager : IDisposable
 {
     private readonly Config _config;
-    private readonly FileSystemWatcher _watcher = new();
+    private readonly FileSystemWatcher? _watcher;
     private FileInfo? _openFile;
 
-    public event Action<string>? Changed;
+    public string? OpenFilePath => _openFile?.FullName;
+
+    public event EventHandler<FileChangedEventArgs>? Changed;
+
+    private readonly object _fileAccessLock = new();
+    private bool _ignoreNextUpdate;
+    private bool _queueRefresh;
 
     private bool _isDisposed;
 
@@ -16,9 +22,22 @@ public class FxFileManager : IDisposable
     {
         _config = config;
 
-        _watcher.Changed += OnUpdate;
+        if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+            return;
+
+        _watcher = new FileSystemWatcher();
+        _watcher.Changed += OnFileChanged;
         _watcher.Renamed += OnFileDeleted;
         _watcher.Deleted += OnFileDeleted;
+    }
+
+    public void Update()
+    {
+        if (!_queueRefresh)
+            return;
+
+        ReloadFile();
+        _queueRefresh = false;
     }
 
     public void OpenFxFile()
@@ -33,10 +52,13 @@ public class FxFileManager : IDisposable
             Directory.CreateDirectory(fileInfo.DirectoryName!);
         }
 
-        _watcher.NotifyFilter = NotifyFilters.LastWrite;
-        _watcher.Path = fileInfo.DirectoryName!;
-        _watcher.Filter = fileInfo.Name;
-        _watcher.EnableRaisingEvents = true;
+        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        {
+            _watcher!.NotifyFilter = NotifyFilters.LastWrite;
+            _watcher.Path = fileInfo.DirectoryName!;
+            _watcher.Filter = fileInfo.Name;
+            _watcher.EnableRaisingEvents = true;
+        }
 
         if (!fileInfo.Exists)
         {
@@ -51,50 +73,116 @@ public class FxFileManager : IDisposable
         if (_openFile == null)
             throw new InvalidOperationException("No file has been opened yet.");
 
-        using var fileStream = _openFile.Exists ? _openFile.OpenRead() : _openFile.Create();
-        using var streamReader = new StreamReader(fileStream);
-        return streamReader.ReadToEnd();
+        try
+        {
+            lock (_fileAccessLock)
+            {
+                using var fileStream = _openFile.Exists ? _openFile.OpenRead() : _openFile.Create();
+                using var streamReader = new StreamReader(fileStream);
+                return streamReader.ReadToEnd();
+            }
+        }
+        catch (IOException e)
+        {
+            Console.WriteLine(e);
+            return string.Empty;
+        }
     }
 
-    private void OnUpdate(object sender, FileSystemEventArgs args)
+    public bool SaveToOpenedFile(string text)
     {
-        var fileInfo = new FileInfo(args.FullPath);
+        if (_openFile == null)
+            throw new InvalidOperationException("No file has been opened yet.");
 
-        if (!fileInfo.Exists)
+        _ignoreNextUpdate = true;
+
+        try
         {
-            _config.FxFilePath.Clear();
-            fileInfo = new FileInfo(_config.FxFilePath.Value);
-            Directory.CreateDirectory(fileInfo.DirectoryName!);
+            lock (_fileAccessLock)
+            {
+                using var fileStream = _openFile.Exists ? _openFile.OpenWrite() : _openFile.Create();
+                using var steamWriter = new StreamWriter(fileStream);
+                fileStream.SetLength(0);
+                steamWriter.Write(text);
+            }
+        }
+        catch (IOException e)
+        {
+            Console.WriteLine(e);
+            return false;
         }
 
-        using var fileStream = fileInfo.Exists ? fileInfo.OpenRead() : fileInfo.Create();
-        using var streamReader = new StreamReader(fileStream);
-        var text = streamReader.ReadToEnd();
-        Changed?.Invoke(text);
+        return true;
+    }
+
+
+    private void OnFileChanged(object sender, FileSystemEventArgs args)
+    {
+        if (_ignoreNextUpdate)
+        {
+            _ignoreNextUpdate = false;
+            return;
+        }
+
+        lock (_fileAccessLock)
+        {
+            if (_openFile?.FullName != args.FullPath)
+                _openFile = new FileInfo(args.FullPath);
+
+            _queueRefresh = true;
+        }
+    }
+
+    private void ReloadFile()
+    {
+        if (_openFile == null)
+            throw new InvalidOperationException("No file has been opened yet.");
+
+        try
+        {
+            lock (_fileAccessLock)
+            {
+                if (!_openFile.Exists)
+                {
+                    _config.FxFilePath.Clear();
+                    _openFile = new FileInfo(_config.FxFilePath.Value);
+                    Directory.CreateDirectory(_openFile.DirectoryName!);
+                }
+
+                using var fileStream = _openFile.Exists ? _openFile.OpenRead() : _openFile.Create();
+                using var streamReader = new StreamReader(fileStream);
+                var text = streamReader.ReadToEnd();
+                Changed?.Invoke(this, new FileChangedEventArgs(text));
+            }
+        }
+        catch (IOException e)
+        {
+            Console.WriteLine(e);
+        }
     }
 
     private void OnFileDeleted(object sender, FileSystemEventArgs args)
     {
         if (_openFile == null || _openFile.Exists)
             return;
-
+        
         using var _ = _openFile.Create();
     }
-    
+
     public void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);
     }
 
-    protected virtual void Dispose(bool disposing)
+    private void Dispose(bool disposing)
     {
         if (_isDisposed)
             return;
 
         if (disposing)
         {
-            _watcher.Dispose();
+            _watcher?.Dispose();
         }
 
         _isDisposed = true;

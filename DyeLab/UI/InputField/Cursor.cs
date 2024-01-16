@@ -1,5 +1,4 @@
 ﻿using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Input;
 
 namespace DyeLab.UI.InputField;
 
@@ -40,7 +39,7 @@ public class Cursor
         IsVisible = false;
     }
     
-    public void Update(GameTime gameTime, KeyboardState keyboardState, out bool cursorMoved)
+    public void Update(GameTime gameTime, out bool cursorMoved)
     {
         cursorMoved = false;
         

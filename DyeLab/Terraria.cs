@@ -8,9 +8,9 @@ public static class Terraria
     public const int PlayerHeight = 56;
 
     public const int PlayerSheetHeight = 1120;
+
+    public const int PlayerFrames = PlayerSheetHeight / PlayerHeight;
     
-    public static readonly Rectangle PlayerSourceRectangle = new(0, 0, PlayerWidth, PlayerHeight);
-    public static readonly Rectangle BodyBackArmSourceRectangle = new(320, 0, PlayerWidth, PlayerHeight);
-    public static readonly Rectangle BodyFrontArmSourceRectangle = new(280, 0, PlayerWidth, PlayerHeight);
-    public static readonly Rectangle BodySpaulderSourceRectangle = new(0, 56, PlayerWidth, PlayerHeight);
+    public const int WalkFrameStart = 6;
+    public const int WalkFrameEnd = 20;
 }

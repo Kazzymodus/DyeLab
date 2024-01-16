@@ -8,9 +8,9 @@ public class ArmorItem
     public ArmorItem(ScrollableList<int> selectionList, Func<int, Texture2D> loadTextureDelegate)
     {
         _selectionList = selectionList;
-        _selectionList.ValueChanged += i =>
+        _selectionList.ValueChanged += (_, args) =>
         {
-            Texture = i == 0 ? null : loadTextureDelegate(i);
+            Texture = args.NewValue == 0 ? null : loadTextureDelegate(args.NewValue);
         };
     }
 

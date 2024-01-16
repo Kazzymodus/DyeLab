@@ -21,7 +21,7 @@ public abstract class UIElement
 
     public bool IsActive { get; private set; } = true;
 
-    public static event Action? ActiveChanged;
+    public static event EventHandler? ActiveChanged;
 
     public virtual void SetBounds(int x, int y, int width, int height)
     {
@@ -82,13 +82,13 @@ public abstract class UIElement
             return;
 
         IsActive = value;
-        ActiveChanged?.Invoke();
+        ActiveChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void ToggleActive()
     {
         IsActive = !IsActive;
-        ActiveChanged?.Invoke();
+        ActiveChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void GetElementsOfType<T>(in List<T>[] elements) where T : class

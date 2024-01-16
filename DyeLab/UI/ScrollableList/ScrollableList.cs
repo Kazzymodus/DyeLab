@@ -16,7 +16,7 @@ public class ScrollableList<T> : UIElement, IClickable, IScrollable
 
     private readonly bool _isPopup;
 
-    public event Action<T>? ValueChanged;
+    public event EventHandler<UIElementValueChangedEventArgs<T>>? ValueChanged;
 
     private ScrollableList(IEnumerable<ScrollableListItem<T>> entries, SpriteFont font, int itemHeight, bool isPopup)
     {
@@ -41,7 +41,7 @@ public class ScrollableList<T> : UIElement, IClickable, IScrollable
         }
 
         _selectedIndex = 0;
-        ValueChanged?.Invoke(_items[_selectedIndex].Value);
+        ValueChanged?.Invoke(this, new UIElementValueChangedEventArgs<T>(_items[_selectedIndex].Value, true));
     }
 
     public void OnFocus()
@@ -59,7 +59,7 @@ public class ScrollableList<T> : UIElement, IClickable, IScrollable
 
         _selectedIndex = index;
 
-        ValueChanged?.Invoke(_items[_selectedIndex].Value);
+        ValueChanged?.Invoke(this, new UIElementValueChangedEventArgs<T>(_items[_selectedIndex].Value));
     }
 
     public void OnLoseFocus()

@@ -1,6 +1,6 @@
 ﻿using DyeLab.Effects;
 using DyeLab.Effects.Constants;
-using DyeLab.Prefabs.DataStructures;
+using DyeLab.Segments.DataStructures;
 using DyeLab.UI;
 using DyeLab.UI.InputField;
 using DyeLab.UI.ScrollableList;
@@ -8,7 +8,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using ArmorShaderParam = DyeLab.Effects.Constants.TerrariaShaderParameters.Armor;
 
-namespace DyeLab.Prefabs;
+namespace DyeLab.Segments;
 
 public static class ControlPanel
 {
@@ -114,15 +114,13 @@ public static class ControlPanel
             .SetMinMaxValues(0, passSliderData.ActiveEffect.Passes.Count - 1)
             .SetBounds(parentPosition.X + x, parentPosition.Y + y + LabelHeight + SliderHeight / 2, width, SliderHeight)
             .Build();
-        passSlider.ValueChanged += f => passSliderData.ActiveEffect.SetPassIndex((int)Math.Round(f));
-        passSlider.ValueChanged += f => passLabel.SetText(passSliderData.ActiveEffect.Passes[(int)Math.Round(f)].Name);
+        passSlider.ValueChanged += (_, args) => passSliderData.ActiveEffect.SetPassIndex((int)Math.Round(args.NewValue));
+        passSlider.ValueChanged += (_, args) => passLabel.SetText(passSliderData.ActiveEffect.Passes[(int)Math.Round(args.NewValue)].Name);
         parent.AddChild(passSlider);
 
-        passSliderData.ActiveEffect.EffectChanged += effect =>
+        passSliderData.ActiveEffect.EffectChanged += (_, args) =>
         {
-            passSlider.SetMinMaxValue(0, effect.CurrentTechnique.Passes.Count - 1);
-            passSlider.SetValue(0);
-            passLabel.SetText(effect.CurrentTechnique.Passes[0].Name);
+            passSlider.SetMinMaxValue(0, args.NewEffect.CurrentTechnique.Passes.Count - 1);
         };
     }
 
@@ -147,10 +145,11 @@ public static class ControlPanel
             .SetFont(font)
             .SetBounds(parentPosition.X + x + 180, parentPosition.Y + y + 20, 180, 160)
             .Build();
-        internalImageScrollList.ValueChanged += i =>
+        internalImageScrollList.ValueChanged += (_, args) =>
         {
+            var index = args.NewValue;
             var images = imageControlData.AssetManager.Images;
-            var image = i > 0 ? images[i - 1] : null;
+            var image = index > 0 ? images[index - 1] : null;
             texturePreview.SetTexture(image);
             imageControlData.GraphicsDevice.Textures[imageIndex] = image;
             sizeLabel.SetText(image != null ? $"{image.Width}X{image.Height}" : "-");
@@ -202,11 +201,11 @@ public static class ControlPanel
                 InputFieldHeight)
             .Build();
 
-        slider.ValueChanged += valueChangedDelegate;
-        slider.ValueChanged += inputField.SetValue;
+        slider.ValueChanged += (_, args) => valueChangedDelegate(args.NewValue);
+        slider.ValueChanged += (_, args) => inputField.SetValue(args.NewValue);
 
-        inputField.Commit += valueChangedDelegate;
-        inputField.Commit += slider.SetValue;
+        inputField.Commit += (_, args) => valueChangedDelegate(args.NewValue);
+        inputField.Commit += (_, args) => slider.SetValue(args.NewValue);
 
         slider.SetValue(sliderData.StartValue);
 

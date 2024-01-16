@@ -42,10 +42,10 @@ public class Checkbox : UIElement, IClickable
             return;
 
         var difference = new Vector2(Width, Height) * (1 - InnerBoxRatio);
-        drawHelper.DrawSolid(difference, (int)Math.Round(Width - difference.X * 2), (int)Math.Round(Height - difference.Y * 2), Color.Gray);
+        drawHelper.DrawSolid(difference, (int)Math.Round(Width - difference.X * 2), (int)Math.Round(Height - difference.Y * 2), Color.Black);
     }
 
-    public static Builder New() => new Builder();
+    public static Builder New() => new();
 
     public class Builder : UIElementBuilder<Checkbox>
     {

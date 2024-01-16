@@ -11,7 +11,7 @@ public class UserInterface
     private bool _isInitialized;
 
     private readonly ICollection<UIElement> _elements = new List<UIElement>();
-    private List<UIElement>[] _drawQueues = new List<UIElement>[(int)DrawLayer.Count];
+    private readonly List<UIElement>[] _drawQueues = new List<UIElement>[(int)DrawLayer.Count];
 
     private List<IClickable>[]? _orderedClickables;
     private List<IScrollable>[]? _orderedScrollables;
@@ -42,14 +42,16 @@ public class UserInterface
         _orderedScrollables = GetElementsOfTypeOrdered<IScrollable>();
         Mouse.ClickedEXT += OnClick;
         Mouse.ScrolledEXT += OnScroll;
-        
+
         SortDraws();
-        
-        UIElement.ActiveChanged += () => _shouldResortDraws = true;
+
+        UIElement.ActiveChanged += OnActiveChanged;
 
         _isInitialized = true;
         return this;
     }
+
+    private void OnActiveChanged(object? sender, EventArgs args) => _shouldResortDraws = true;
 
     private void SortDraws()
     {
@@ -76,7 +78,7 @@ public class UserInterface
             HandleScroll(_scrollQueued);
             _scrollQueued = 0;
         }
-        
+
         foreach (var element in _elements)
             element.Update(gameTime);
     }
@@ -160,7 +162,7 @@ public class UserInterface
     {
         if (amount == 0)
             return;
-        
+
         var mousePosition = GetMousePosition();
 
         for (var i = _orderedScrollables!.Length - 1; i >= 0; i--)

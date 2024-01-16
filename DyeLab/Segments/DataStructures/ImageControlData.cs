@@ -1,7 +1,7 @@
 ﻿using DyeLab.Assets;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace DyeLab.Prefabs.DataStructures;
+namespace DyeLab.Segments.DataStructures;
 
 public class ImageControlData
 {
