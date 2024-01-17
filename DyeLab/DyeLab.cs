@@ -297,9 +297,9 @@ namespace DyeLab
 
             if (GraphicsDevice.Textures[1] is Texture2D texture)
                 _activeEffect!.Parameters[TerrariaShaderParameters.Armor.SecondaryImageSize]
-                    .SetValue(new Vector2(texture.Width, texture.Height));
+                    ?.SetValue(new Vector2(texture.Width, texture.Height));
 
-            _activeEffect!.Parameters[TerrariaShaderParameters.Armor.Direction].SetValue(1f);
+            _activeEffect!.Parameters[TerrariaShaderParameters.Armor.Direction]?.SetValue(1f);
 
             _spriteBatch!.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
 

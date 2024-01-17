@@ -11,7 +11,7 @@ public class AssetManager
     private readonly ContentManager _contentManager;
     private readonly Config _config;
     public ExternalTextureKey[][] ArmorTextures { get; } = new ExternalTextureKey[3][];
-    
+
     public string? FallbackShader { get; private set; }
 
     private readonly IList<Texture2D> _terrariaImages;
@@ -112,18 +112,18 @@ public class AssetManager
 
         void LoadIds(int index, string fileName)
         {
-             var lines = File.ReadAllLines($"data/{fileName}.txt");
-             ArmorTextures[index] = lines.Select(x =>
-             {
-                 var split = x.Split(':');
-                 return new ExternalTextureKey(split[0], int.Parse(split[1]));
-             }).ToArray();
+            var lines = File.ReadAllLines($"data/{fileName}.txt");
+            ArmorTextures[index] = lines.Select(x =>
+            {
+                var split = x.Split(':');
+                return new ExternalTextureKey(split[0], int.Parse(split[1]));
+            }).ToArray();
         }
     }
 
     private void LoadFallbackShader()
     {
-FallbackShader = File.ReadAllText($"data/baseShader.txt");
+        FallbackShader = File.ReadAllText($"data/baseShader.txt");
     }
 
     public SpriteFont LoadFont(string fontName)

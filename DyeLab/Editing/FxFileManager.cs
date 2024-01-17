@@ -69,7 +69,7 @@ public sealed class FxFileManager : IDisposable
         var fileName = !string.IsNullOrEmpty(_config.CompiledFileName.Value)
             ? _config.CompiledFileName.Value
             : Path.GetFileNameWithoutExtension(_inputFile.FullName);
-        _compiledFile = new FileInfo(_config.OutputDirectory.Value + Path.DirectorySeparatorChar + fileName + ".xnb");
+        _compiledFile = new FileInfo(_config.OutputDirectory.Value + Path.DirectorySeparatorChar + fileName + ".fxc");
     }
 
     public string ReadOpenedFile()
@@ -126,9 +126,9 @@ public sealed class FxFileManager : IDisposable
         try
         {
             using var fileStream = _compiledFile.Exists ? _compiledFile.OpenWrite() : _compiledFile.Create();
-            using var steamWriter = new StreamWriter(fileStream);
+            using var binaryWriter = new BinaryWriter(fileStream);
             fileStream.SetLength(0);
-            steamWriter.Write(code);
+            binaryWriter.Write(code);
         }
         catch (IOException e)
         {
