@@ -99,23 +99,27 @@ public static class ControlPanel
         var parentPosition = parent.Position;
 
         CreateLabel(parent, x, y, new LabelData(font, "Pass"));
-        
+
         CreateLabel(parent, x + 20, y + belowSliderY - CheckboxSize / 6, new LabelData(font, "Vanilla"));
         var vanillaCheckbox = Checkbox.New()
             .SetBounds(parent.Position.X + x, parent.Position.Y + y + belowSliderY, CheckboxSize, CheckboxSize)
             .Build();
-        vanillaCheckbox.ValueChanged += b => passSliderData.SetActiveEffectDelegate(b ? EffectType.Vanilla : EffectType.Editor);
-        
+        vanillaCheckbox.ValueChanged += b =>
+            passSliderData.SetActiveEffectDelegate(b ? EffectType.Vanilla : EffectType.Editor);
+
         parent.AddChild(vanillaCheckbox);
 
-        var passLabel = CreateLabel(parent, x + (int)(width * 0.5f) + SliderPadding, y + LabelHeight + SliderHeight + 16,
+        var passLabel = CreateLabel(parent, x + (int)(width * 0.5f) + SliderPadding,
+            y + LabelHeight + SliderHeight + 16,
             new LabelData(font, passSliderData.ActiveEffect.CurrentPass.Name, new Vector2(200, 20)));
         var passSlider = Slider.New()
             .SetMinMaxValues(0, passSliderData.ActiveEffect.Passes.Count - 1)
             .SetBounds(parentPosition.X + x, parentPosition.Y + y + LabelHeight + SliderHeight / 2, width, SliderHeight)
             .Build();
-        passSlider.ValueChanged += (_, args) => passSliderData.ActiveEffect.SetPassIndex((int)Math.Round(args.NewValue));
-        passSlider.ValueChanged += (_, args) => passLabel.SetText(passSliderData.ActiveEffect.Passes[(int)Math.Round(args.NewValue)].Name);
+        passSlider.ValueChanged +=
+            (_, args) => passSliderData.ActiveEffect.SetPassIndex((int)Math.Round(args.NewValue));
+        passSlider.ValueChanged += (_, args) =>
+            passLabel.SetText(passSliderData.ActiveEffect.Passes[(int)Math.Round(args.NewValue)].Name);
         parent.AddChild(passSlider);
 
         passSliderData.ActiveEffect.EffectChanged += (_, args) =>
@@ -127,23 +131,36 @@ public static class ControlPanel
     private static void CreateImageControl(UIElement parent, int x, int y, int imageIndex, SpriteFont font,
         ImageControlData imageControlData)
     {
+        const int texturePreviewSize = 160;
+        const int scrollListWidth = 180;
+        const int scrollListHeight = 160;
+        const int buttonWidth = 40;
+        const int buttonHeight = 20;
+        
+        const int sizeLabelPadding = 22;
+        const int scrollListPadding = 20;
+
         if (imageIndex <= 0)
             throw new ArgumentOutOfRangeException(nameof(imageIndex), imageIndex, "Index must be higher than 0.");
 
-        CreateLabel(parent, x, y, new LabelData(font, "Image"));
+        var label = CreateLabel(parent, x, y, new LabelData(font, "Image"));
 
         var parentPosition = parent.Position;
         var texturePreview = TexturePreview.New()
             .SetFont(font)
-            .SetBounds(parentPosition.X + x, parentPosition.Y + y + 20, 160, 160)
+            .SetBounds(parentPosition.X + x, parentPosition.Y + y + label.Height, texturePreviewSize,
+                texturePreviewSize)
             .Build();
-        var sizeLabel = CreateLabel(parent, x, y + 182, new LabelData(font, "-", new Vector2(160, 20)));
+        var sizeLabel = CreateLabel(parent, x, y + texturePreviewSize + sizeLabelPadding,
+            new LabelData(font, "-", new Vector2(texturePreviewSize, LabelHeight)));
 
         var internalImageScrollList = ScrollableList<int>.New()
             .SetListItems(ImagesToEntries(imageControlData.AssetManager.Images))
             .SetItemHeight(20)
             .SetFont(font)
-            .SetBounds(parentPosition.X + x + 180, parentPosition.Y + y + 20, 180, 160)
+            .SetBounds(parentPosition.X + x + texturePreviewSize + scrollListPadding,
+                parentPosition.Y + y + label.Height,
+                scrollListWidth, scrollListHeight)
             .Build();
         internalImageScrollList.ValueChanged += (_, args) =>
         {
@@ -161,6 +178,23 @@ public static class ControlPanel
 
         parent.AddChild(texturePreview);
         parent.AddChild(internalImageScrollList);
+
+        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        {
+            var openImagesDirectoryButton = Button.New()
+                .SetFont(font)
+                .SetLabel("Open")
+                .SetBounds(parent.Position.X + x + texturePreviewSize + scrollListPadding,
+                    parent.Position.Y + y + label.Height + scrollListHeight, buttonWidth, buttonHeight)
+                .Build();
+            openImagesDirectoryButton.Clicked += () =>
+            {
+                var folderPath = "Content" + Path.DirectorySeparatorChar + "Images";
+                Directory.CreateDirectory(folderPath);
+                OS.Open(folderPath + Path.DirectorySeparatorChar);
+            };
+            parent.AddChild(openImagesDirectoryButton);
+        }
 
         IEnumerable<ScrollableListItem<int>> ImagesToEntries(ICollection<Texture2D> images)
         {
