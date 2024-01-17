@@ -7,6 +7,7 @@ public class Config
     public ConfigOption<string> TerrariaInstallationPath { get; } = new(Default.TerrariaInstallationPathSteam);
     public ConfigOption<string> OutputDirectory { get; } = new(Default.OutputDirectory);
     public ConfigOption<string> FxFilePath { get; } = new(Default.FxFilePath, x => x.EndsWith(".fx"));
+    public ConfigOption<string?> CompiledFileName { get; } = new(string.Empty);
 
     private static class Default
     {

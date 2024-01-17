@@ -70,7 +70,10 @@ public class ScrollableList<T> : UIElement, IClickable, IScrollable
 
     public void OnScroll(int amount)
     {
-        _scroll = Math.Clamp(_scroll - amount, 0, _items.Count - Height / _itemHeight);
+        var maxScroll = _items.Count - Height / _itemHeight;
+        if (maxScroll <= 0)
+            return;
+        _scroll = Math.Clamp(_scroll - amount, 0, maxScroll);
     }
 
     protected override void DrawElement(DrawHelper drawHelper)

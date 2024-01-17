@@ -20,7 +20,7 @@ public class IntegerInputField : InputField<int>
         }
     }
 
-    protected override int Value =>
+    public override int Value =>
         int.TryParse(Content.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var i)
             ? i
             : 0;

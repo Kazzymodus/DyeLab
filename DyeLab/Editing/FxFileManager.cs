@@ -1,4 +1,6 @@
-﻿using DyeLab.Configuration;
+﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using DyeLab.Configuration;
 
 namespace DyeLab.Editing;
 
@@ -6,10 +8,8 @@ public sealed class FxFileManager : IDisposable
 {
     private readonly Config _config;
     private readonly FileSystemWatcher? _watcher;
-    private FileInfo? _openFile;
-
-    public string? OpenFilePath => _openFile?.FullName;
-
+    private FileInfo? _inputFile;
+    private FileInfo? _compiledFile;
     public event EventHandler<FileChangedEventArgs>? Changed;
 
     private readonly object _fileAccessLock = new();
@@ -36,48 +36,52 @@ public sealed class FxFileManager : IDisposable
         if (!_queueRefresh)
             return;
 
-        ReloadFile();
+        RefreshFile();
         _queueRefresh = false;
     }
 
-    public void OpenFxFile()
+    public void LoadFxFile()
     {
         var path = _config.FxFilePath.Value;
-        var fileInfo = new FileInfo(path);
+        var rawFileInfo = new FileInfo(path);
 
-        if (!fileInfo.Exists)
+        if (!rawFileInfo.Exists)
         {
             _config.FxFilePath.Clear();
-            fileInfo = new FileInfo(_config.FxFilePath.Value);
-            Directory.CreateDirectory(fileInfo.DirectoryName!);
+            rawFileInfo = new FileInfo(_config.FxFilePath.Value);
+            Directory.CreateDirectory(rawFileInfo.DirectoryName!);
         }
 
         if (Environment.OSVersion.Platform == PlatformID.Win32NT)
         {
             _watcher!.NotifyFilter = NotifyFilters.LastWrite;
-            _watcher.Path = fileInfo.DirectoryName!;
-            _watcher.Filter = fileInfo.Name;
+            _watcher.Path = rawFileInfo.DirectoryName!;
+            _watcher.Filter = rawFileInfo.Name;
             _watcher.EnableRaisingEvents = true;
         }
 
-        if (!fileInfo.Exists)
+        if (!rawFileInfo.Exists)
         {
-            using var _ = fileInfo.Create();
+            using var _ = rawFileInfo.Create();
         }
 
-        _openFile = fileInfo;
+        _inputFile = rawFileInfo;
+
+        var fileName = !string.IsNullOrEmpty(_config.CompiledFileName.Value)
+            ? _config.CompiledFileName.Value
+            : Path.GetFileNameWithoutExtension(_inputFile.FullName);
+        _compiledFile = new FileInfo(_config.OutputDirectory.Value + Path.DirectorySeparatorChar + fileName + ".xnb");
     }
 
     public string ReadOpenedFile()
     {
-        if (_openFile == null)
-            throw new InvalidOperationException("No file has been opened yet.");
+        ThrowIfNoInputFileOpened();
 
         try
         {
             lock (_fileAccessLock)
             {
-                using var fileStream = _openFile.Exists ? _openFile.OpenRead() : _openFile.Create();
+                using var fileStream = _inputFile.Exists ? _inputFile.OpenRead() : _inputFile.Create();
                 using var streamReader = new StreamReader(fileStream);
                 return streamReader.ReadToEnd();
             }
@@ -91,8 +95,7 @@ public sealed class FxFileManager : IDisposable
 
     public bool SaveToOpenedFile(string text)
     {
-        if (_openFile == null)
-            throw new InvalidOperationException("No file has been opened yet.");
+        ThrowIfNoInputFileOpened();
 
         _ignoreNextUpdate = true;
 
@@ -100,7 +103,7 @@ public sealed class FxFileManager : IDisposable
         {
             lock (_fileAccessLock)
             {
-                using var fileStream = _openFile.Exists ? _openFile.OpenWrite() : _openFile.Create();
+                using var fileStream = _inputFile.Exists ? _inputFile.OpenWrite() : _inputFile.Create();
                 using var steamWriter = new StreamWriter(fileStream);
                 fileStream.SetLength(0);
                 steamWriter.Write(text);
@@ -115,6 +118,78 @@ public sealed class FxFileManager : IDisposable
         return true;
     }
 
+    public FileInfo? ExportCompiledToFile(byte[] code)
+    {
+        ThrowIfCompiledFilePathNotSet();
+
+        Directory.CreateDirectory(_compiledFile.DirectoryName!);
+
+        try
+        {
+            using var fileStream = _compiledFile.Exists ? _compiledFile.OpenWrite() : _compiledFile.Create();
+            using var steamWriter = new StreamWriter(fileStream);
+            fileStream.SetLength(0);
+            steamWriter.Write(code);
+        }
+        catch (IOException e)
+        {
+            Console.WriteLine(e);
+            return null;
+        }
+
+        return _compiledFile.Exists ? _compiledFile : null;
+    }
+
+    public void OpenOutputDirectory()
+    {
+        Directory.CreateDirectory(_config.OutputDirectory.Value);
+        Open(_config.OutputDirectory.Value + Path.DirectorySeparatorChar);
+    }
+
+    public void OpenInputFile()
+    {
+        ThrowIfNoInputFileOpened();
+
+        if (!_inputFile.Exists)
+            throw new InvalidOperationException("The input file does not exist.");
+
+        if (!_inputFile.Name.EndsWith(".fx"))
+        {
+            Console.WriteLine("WARNING: The input file is not an .fx file!");
+            throw new InvalidOperationException("Attempting to open a non-FX file.");
+        }
+
+        Open(_inputFile.FullName);
+    }
+
+    private static void Open(string path)
+    {
+        if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+            throw new PlatformNotSupportedException();
+
+        var allowedFileTypes = new[] { ".fx" };
+
+        if (!Path.Exists(path))
+            throw new ArgumentException("The given directory or file does not exist.");
+
+        if (!Path.EndsInDirectorySeparator(path) && allowedFileTypes.All(x => !path.EndsWith(x)))
+            throw new ArgumentException("The path is not a directory and is not an allowed file type.");
+
+        try
+        {
+            var process = new Process();
+            process.StartInfo = new ProcessStartInfo
+            {
+                UseShellExecute = true,
+                FileName = path
+            };
+            process.Start();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Could not open file: {e}");
+        }
+    }
 
     private void OnFileChanged(object sender, FileSystemEventArgs args)
     {
@@ -126,30 +201,29 @@ public sealed class FxFileManager : IDisposable
 
         lock (_fileAccessLock)
         {
-            if (_openFile?.FullName != args.FullPath)
-                _openFile = new FileInfo(args.FullPath);
+            if (_inputFile?.FullName != args.FullPath)
+                _inputFile = new FileInfo(args.FullPath);
 
             _queueRefresh = true;
         }
     }
 
-    private void ReloadFile()
+    private void RefreshFile()
     {
-        if (_openFile == null)
-            throw new InvalidOperationException("No file has been opened yet.");
+        ThrowIfNoInputFileOpened();
 
         try
         {
             lock (_fileAccessLock)
             {
-                if (!_openFile.Exists)
+                if (!_inputFile.Exists)
                 {
                     _config.FxFilePath.Clear();
-                    _openFile = new FileInfo(_config.FxFilePath.Value);
-                    Directory.CreateDirectory(_openFile.DirectoryName!);
+                    _inputFile = new FileInfo(_config.FxFilePath.Value);
+                    Directory.CreateDirectory(_inputFile.DirectoryName!);
                 }
 
-                using var fileStream = _openFile.Exists ? _openFile.OpenRead() : _openFile.Create();
+                using var fileStream = _inputFile.Exists ? _inputFile.OpenRead() : _inputFile.Create();
                 using var streamReader = new StreamReader(fileStream);
                 var text = streamReader.ReadToEnd();
                 Changed?.Invoke(this, new FileChangedEventArgs(text));
@@ -163,10 +237,24 @@ public sealed class FxFileManager : IDisposable
 
     private void OnFileDeleted(object sender, FileSystemEventArgs args)
     {
-        if (_openFile == null || _openFile.Exists)
+        if (_inputFile == null || _inputFile.Exists)
             return;
-        
-        using var _ = _openFile.Create();
+
+        using var _ = _inputFile.Create();
+    }
+
+    [MemberNotNull(nameof(_inputFile))]
+    private void ThrowIfNoInputFileOpened()
+    {
+        if (_inputFile == null)
+            throw new InvalidOperationException("No file has been opened yet.");
+    }
+
+    [MemberNotNull(nameof(_compiledFile))]
+    private void ThrowIfCompiledFilePathNotSet()
+    {
+        if (_compiledFile == null)
+            throw new InvalidOperationException("Compiled file path has not been set. Has an input file been opened?");
     }
 
     public void Dispose()

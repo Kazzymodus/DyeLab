@@ -449,7 +449,7 @@ public abstract class InputField : UIElement, IClickable, IScrollable
 
 public abstract class InputField<T> : InputField
 {
-    protected abstract T Value { get; }
+    public abstract T Value { get; }
 
     public event EventHandler<UIElementValueChangedEventArgs<T>>? Commit;
 

@@ -2,9 +2,9 @@
 
 namespace DyeLab.Compiler;
 
-public class ShaderCompiler
+public static class ShaderCompiler
 {
-    public static bool Compile(string shaderText, [NotNullWhen(true)]out byte[]? code, [NotNullWhen(false)]out string? error)
+    public static bool TryCompile(string shaderText, [NotNullWhen(true)]out byte[]? code, [NotNullWhen(false)]out string? error)
     {
         try
         {

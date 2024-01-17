@@ -44,7 +44,7 @@ public partial class TextInputField : InputField<string>
         }
     }
 
-    protected override string Value => Content.ToString();
+    public override string Value => Content.ToString();
 
     protected override bool IsValidCharacter(char input)
     {

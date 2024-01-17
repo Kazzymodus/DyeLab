@@ -20,7 +20,7 @@ public class FloatInputField : InputField<float>
         }
     }
 
-    protected override float Value =>
+    public override float Value =>
         float.TryParse(Content.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var f)
             ? f
             : 0;

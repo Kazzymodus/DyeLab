@@ -123,7 +123,7 @@ public class AssetManager
 
     private void LoadFallbackShader()
     {
-        FallbackShader = File.ReadAllText($"data/baseShader.txt");
+FallbackShader = File.ReadAllText($"data/baseShader.txt");
     }
 
     public SpriteFont LoadFont(string fontName)

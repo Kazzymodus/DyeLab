@@ -95,15 +95,7 @@ public class PlayerFrameGallery : Segment
 
         armorPanel.SizeToContents();
         solidPanel.SizeToContents();
-
-        var tabBar = TabBar.New()
-            .AddTab("Armors", armorPanel)
-            .AddTab("Solids", solidPanel)
-            .SetFont(_font)
-            .SetBounds(position.X + 20, position.Y + 240, 200, 20)
-            .Build();
-        panel.AddChild(tabBar);
-
+        
         var walkLabel = Label.New()
             .SetFont(_font)
             .SetText("Frame")
@@ -134,8 +126,16 @@ public class PlayerFrameGallery : Segment
         
         panel.AddChild(slider);
         panel.AddChild(inputField);
-
+        
         panel.SizeToContents();
+
+        var tabBar = TabBar.New()
+            .AddTab("Armors", armorPanel)
+            .AddTab("Solids", solidPanel)
+            .SetFont(_font)
+            .SetBounds(position.X + 20, position.Y + 240, 200, 20)
+            .Build();
+        panel.AddChild(tabBar);
 
         return panel;
     }

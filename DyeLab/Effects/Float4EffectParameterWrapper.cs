@@ -32,6 +32,6 @@ public sealed class Float4EffectParameterWrapper : VectorEffectParameterWrapper<
 
     public override void Apply(EffectWrapper effect)
     {
-        effect.Parameters[Parameter].SetValue(Value);
+        effect.Parameters[Parameter]?.SetValue(Value);
     }
 }

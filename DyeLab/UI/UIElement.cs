@@ -9,8 +9,8 @@ public abstract class UIElement
 {
     protected int X { get; private set; }
     protected int Y { get; private set; }
-    protected int Width { get; private set; }
-    protected int Height { get; private set; }
+    public int Width { get; private set; }
+    public int Height { get; private set; }
 
     private DrawLayer _drawLayer = DrawLayer.Default;
 
@@ -129,8 +129,10 @@ public abstract class UIElement
     public void Draw(DrawHelper drawHelper)
     {
         drawHelper.DrawOffset = new Vector2(Position.X, Position.Y);
+        // #if DEBUG
         // if (Width > 0 && Height > 0)
         //     drawHelper.DrawSolid(Vector2.Zero, Width, Height, Color.FromNonPremultiplied(255, 0, 0, 40));
+        // #endif
         DrawElement(drawHelper);
     }
 

@@ -1,5 +1,5 @@
-﻿using System.Diagnostics;
-using DyeLab.Editing;
+﻿using DyeLab.Editing;
+using DyeLab.Segments.DataStructures;
 using DyeLab.UI;
 using DyeLab.UI.InputField;
 using Microsoft.Xna.Framework;
@@ -9,10 +9,8 @@ namespace DyeLab.Segments;
 
 public static class EditorPanel
 {
-    public delegate bool CompileDelegate(string shaderText, out string? error);
-
     public static UIElement Build(Point position, SpriteFont font, FxFileManager fxFileManager,
-        CompileDelegate compileDelegate, string? shaderError)
+        EditorMethods methods, string? shaderError)
     {
         const int editorWidth = 500;
         const int editorHeight = 375;
@@ -21,8 +19,11 @@ public static class EditorPanel
         
         const int errorListHeight = 100;
         
-        const int buttonWidth = 40;
+        const int buttonWidth = 80;
         const int buttonHeight = 20;
+        const int buttonPadding = 10;
+
+        const string noErrorsText = "No errors!";
 
         var panel = Panel.New()
             .SetBounds(position.X, position.Y, 0, 0)
@@ -41,12 +42,12 @@ public static class EditorPanel
             .SetBounds(position.X, position.Y + editorHeight + buttonHeight + errorListPadding, editorWidth, errorListHeight)
             .Build();
         panel.AddChild(errorField);
-        errorField.SetValue(shaderError ?? "No errors.");
+        errorField.SetValue(shaderError ?? noErrorsText);
 
         editor.Commit += (_, args) =>
         {
-            compileDelegate(args.NewValue, out var error);
-            errorField.SetValue(error ?? "No errors!");
+            methods.CompileAndLoad(args.NewValue, out var error);
+            errorField.SetValue(error ?? noErrorsText);
         };
         editor.Commit += (_, args) =>
         {
@@ -56,39 +57,39 @@ public static class EditorPanel
         };
         fxFileManager.Changed += (_, args) => editor.SetValue(args.NewContent);
 
+        var buttonX = 0;
+        
         if (Environment.OSVersion.Platform == PlatformID.Win32NT)
         {
-            var openFileButton = Button.New()
+            var openInputFileButton = Button.New()
                 .SetFont(font)
                 .SetLabel("Open")
                 .SetBounds(position.X, position.Y + editorHeight, buttonWidth, buttonHeight)
                 .Build();
-            panel.AddChild(openFileButton);
-            openFileButton.Clicked += () =>
-            {
-                var filePath = fxFileManager.OpenFilePath;
-                if (!File.Exists(filePath))
-                    return;
-
-                if (!filePath.EndsWith(".fx"))
-                    throw new InvalidOperationException("Attempting to open something that isn't an .fx file.");
-
-                try
-                {
-                    var process = new Process();
-                    process.StartInfo = new ProcessStartInfo
-                    {
-                        UseShellExecute = true,
-                        FileName = filePath
-                    };
-                    process.Start();
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"Could not open file: {e}");
-                }
-            };
+            panel.AddChild(openInputFileButton);
+            openInputFileButton.Clicked += fxFileManager.OpenInputFile;
+            buttonX += buttonWidth + buttonPadding;
+            
+            var openOutputDirectoryButton = Button.New()
+                .SetFont(font)
+                .SetLabel("Output")
+                .SetBounds(position.X + buttonX, position.Y + editorHeight, buttonWidth, buttonHeight)
+                .Build();
+            panel.AddChild(openOutputDirectoryButton);
+            openOutputDirectoryButton.Clicked += fxFileManager.OpenOutputDirectory;
+            buttonX += buttonWidth + buttonPadding;
         }
+        
+        var exportButton = Button.New()
+            .SetFont(font)
+            .SetLabel("Compile")
+            .SetBounds(position.X + buttonX, position.Y + editorHeight, buttonWidth, buttonHeight)
+            .Build();
+        panel.AddChild(exportButton);
+        exportButton.Clicked += () =>
+        {
+            methods.Export(editor.Value);
+        };
 
         panel.AddChild(editor);
         panel.SizeToContents();

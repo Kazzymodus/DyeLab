@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using DyeLab.Assets;
 using DyeLab.Compiler;
 using DyeLab.Configuration;
@@ -71,7 +72,7 @@ namespace DyeLab
             _assetManager = new AssetManager(Content, config);
 
             _fxFileManager = new FxFileManager(config);
-            _fxFileManager.OpenFxFile();
+            _fxFileManager.LoadFxFile();
 
             _spriteBatch = new SpriteBatch(GraphicsDevice);
 
@@ -116,9 +117,9 @@ namespace DyeLab
                 Exit();
             }
 
-            if (!ShaderCompiler.Compile(_assetManager!.FallbackShader!, out var fallbackShader, out _))
+            if (!ShaderCompiler.TryCompile(_assetManager!.FallbackShader!, out var fallbackShader, out _))
             {
-                ShowMessageBox($"The fallback shader is corrupted.\n\nTry reinstalling the application.");
+                ShowMessageBox($"The fallback shader is corrupted.\n\nTry re-downloading the application.");
                 Exit();
             }
 
@@ -131,8 +132,15 @@ namespace DyeLab
         protected override void BeginRun()
         {
             var effectCode = _fxFileManager!.ReadOpenedFile();
+            if (string.IsNullOrEmpty(effectCode))
+            {
+                effectCode = _assetManager!.FallbackShader!;
+                _fxFileManager.SaveToOpenedFile(effectCode);
+            }
 
-            _activeEffectType = CompileAndReload(effectCode, out var error) ? EffectType.Editor : EffectType.Fallback;
+            _activeEffectType = CompileAndLoadShader(effectCode, out var error)
+                ? EffectType.Editor
+                : EffectType.Fallback;
             _activeEffect = new EffectWrapper(_effects[_activeEffectType]);
             _drawHelper = new DrawHelper(_spriteBatch!, _activeEffect);
 
@@ -173,14 +181,11 @@ namespace DyeLab
         {
             const int editorX = 10;
             const int editorY = 20;
-            const int editorWidth = 500;
-            const int editorHeight = 480;
 
             const int galleryX = 20;
             const int galleryY = 20;
-            const int galleryWidth = 180;
 
-            const int controlPanelX = 60;
+            const int controlPanelX = 50;
             const int controlPanelY = 20;
 
             var x = 0;
@@ -189,16 +194,16 @@ namespace DyeLab
             var armorShaderPanel = new Panel();
 
             var editorPanel = EditorPanel.Build(new Point(editorX, editorY), consolasFont, _fxFileManager!,
-                CompileAndReload, shaderError);
+                new EditorMethods(CompileAndLoadShader, ExportShader), shaderError);
 
-            x += editorX + editorWidth;
+            x += editorX + editorPanel.Width;
 
-            var galleryPosition = new Point(editorWidth + galleryX, galleryY);
+            var galleryPosition = new Point(x + galleryX, galleryY);
             var armorGallery = new PlayerFrameGallery(consolasFont, _assetManager);
             _segments.Add(armorGallery);
             var armorGalleryPanel = armorGallery.BuildUI(galleryPosition);
 
-            x += galleryX + galleryWidth;
+            x += galleryX + armorGalleryPanel.Width;
 
             var controlPanel = ControlPanel.Build(new Point(x + controlPanelX, controlPanelY), consolasFont,
                 _effectParameters!,
@@ -206,7 +211,6 @@ namespace DyeLab
                 new ImageControlData(_assetManager, GraphicsDevice));
 
             armorShaderPanel.AddChild(editorPanel);
-
             armorShaderPanel.AddChild(armorGalleryPanel);
             armorShaderPanel.AddChild(controlPanel);
 
@@ -226,9 +230,30 @@ namespace DyeLab
             _activeEffect!.SetEffect(_effects[EffectType.Fallback]);
         }
 
-        private bool CompileAndReload(string shaderText, [NotNullWhen(false)] out string? error)
+        private void ExportShader(string shaderText)
         {
-            if (!ShaderCompiler.Compile(shaderText, out var code, out error) || error != null)
+            if (!ShaderCompiler.TryCompile(shaderText, out var code, out _))
+                return;
+
+            var compiledFile = _fxFileManager!.ExportCompiledToFile(code);
+            if (compiledFile == null)
+            {
+                Console.WriteLine("Could not export shader!");
+                return;
+            }
+
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+                return;
+
+            _fxFileManager.OpenOutputDirectory();
+        }
+
+        private bool CompileAndLoadShader(string shaderText, [NotNullWhen(false)] out string? error)
+        {
+            if (!ShaderCompiler.TryCompile(shaderText, out var code, out error))
+                return false;
+
+            if (error != null)
                 return false;
 
             if (_effects.TryGetValue(EffectType.Editor, out var editorShader))
