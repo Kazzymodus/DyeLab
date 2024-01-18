@@ -38,8 +38,6 @@ public abstract class InputField : UIElement, IClickable, IScrollable
 
     private readonly SpriteFont _font;
 
-    // private Selection _selection;
-
     private readonly AutoCommitter? _autoCommitter;
 
     protected InputField(SpriteFont font, float? autoCommitDelay, bool isReadOnly)
@@ -502,9 +500,9 @@ public abstract class InputField<T> : InputField
             return this;
         }
 
-        public InputFieldBuilder AutoCommit(int delayInMilliseconds)
+        public InputFieldBuilder AutoCommit(float delayInSeconds)
         {
-            AutoCommitDelay = delayInMilliseconds;
+            AutoCommitDelay = delayInSeconds;
             return this;
         }
 

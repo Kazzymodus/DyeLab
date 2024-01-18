@@ -24,6 +24,7 @@ public static class EditorPanel
         const int buttonPadding = 10;
 
         const string noErrorsText = "No errors!";
+        const float autoCommitDelayInSeconds = 0.2f;
 
         var panel = Panel.New()
             .SetBounds(position.X, position.Y, 0, 0)
@@ -31,12 +32,14 @@ public static class EditorPanel
 
         var editor = TextInputField.New()
             .MultiLine()
+            .AutoCommit(autoCommitDelayInSeconds)
             .SetFont(font)
             .SetBounds(position.X, position.Y, editorWidth, editorHeight)
             .Build();
         editor.SetValue(fxFileManager.ReadOpenedFile());
         
         var errorField = TextInputField.New()
+            .MultiLine()
             .SetFont(font)
             .ReadOnly()
             .SetBounds(position.X, position.Y + editorHeight + buttonHeight + errorListPadding, editorWidth, errorListHeight)
